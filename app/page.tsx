@@ -33,6 +33,8 @@ export default function Home() {
   //seleccion manual
   const [isManualSelect, setIsManualSelect] = useState(false); // Bandera para selección manual
   const [lastAutoSelectedId, setLastAutoSelectedId] = useState<string | null>(null);
+  const [antennaStatus, setAntennaStatus] = useState<'connected' | 'disconnected'>('connected');
+
 
 
   useEffect(() => {
@@ -275,36 +277,11 @@ useEffect(() => {
       className="object-contain"
     />
   </div>
-{/* Botón para reiniciar antena */}
-<div className="mt-6 text-center">
-  {/* Botón para reiniciar antena */}
-  <Button
-    onClick={handleRestartAntenna}
-    disabled={isLoading}
-    className={`font-bold py-8 px-8 rounded-lg shadow-md transition-all ${
-      isLoading
-        ? "bg-gray-400 cursor-not-allowed text-white"
-        : "bg-[#ff6900] text-[#133d3d] hover:bg-[#d18f18] hover:text-white"
-    }`}
-  >
-    {isLoading ? "Reiniciando..." : "REINICIAR ANTENA"}
-  </Button>
+    {/* Mensaje de advertencia */}
+    <div className="mt-4 p-4 bg-yellow-200 text-yellow-800 rounded-lg text-center font-semibold">
+          ⚠️ Favor de asegurarse que la antena detecte correctamente la etiqueta. Si no la detecta a la primera, vuelva a pasar hasta que sea escaneada.
+        </div>
 
-  {/* Dialog para el feedback del reinicio */}
-  <Dialog open={!!responseMessage} onOpenChange={() => setResponseMessage(null)}>
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>
-          {responseType === "success" ? "¡Éxito!" : "Error"}
-        </DialogTitle>
-        <DialogDescription>{responseMessage}</DialogDescription>
-      </DialogHeader>
-      <DialogFooter>
-        <Button onClick={() => setResponseMessage(null)}>Cerrar</Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-</div>
   {/* Título principal */}
   <h2 className="text-3xl font-bold mb-8 text-[#133d3d] text-center border-b-4 border-[#e1a21b] pb-4">
     Productos Entrantes
@@ -342,6 +319,35 @@ useEffect(() => {
     </Card>
   ))}
 </div>
+<div className="mt-6 text-center">
+          <p className="text-red-600 font-semibold text-lg mb-2">¿La antena no detecta el producto?</p>
+          <Button
+            onClick={handleRestartAntenna}
+            disabled={isLoading}
+            className={`font-bold py-8 px-8 rounded-lg shadow-md transition-all ${
+              isLoading
+                ? "bg-gray-400 cursor-not-allowed text-white"
+                : "bg-[#ff6900] text-[#133d3d] hover:bg-[#d18f18] hover:text-white"
+            }`}
+          >
+            {isLoading ? "Reiniciando..." : "REINICIAR ANTENA"}
+          </Button>
+
+  {/* Dialog para el feedback del reinicio */}
+  <Dialog open={!!responseMessage} onOpenChange={() => setResponseMessage(null)}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>
+          {responseType === "success" ? "¡Éxito!" : "Error"}
+        </DialogTitle>
+        <DialogDescription>{responseMessage}</DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button onClick={() => setResponseMessage(null)}>Cerrar</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+</div>
 
 </div>
 
@@ -377,36 +383,8 @@ useEffect(() => {
     </p>
   </div>
 
-  {/* Botón para reiniciar antena */}
-  <div className="mt-6 text-center">
-  {/* Botón para reiniciar antena */}
-  <Button
-    onClick={handleRestartAntenna}
-    disabled={isLoading}
-    className={`font-bold py-8 px-8 rounded-lg shadow-md transition-all ${
-      isLoading
-        ? "bg-gray-400 cursor-not-allowed text-white"
-        : "bg-[#ff6900] text-[#133d3d] hover:bg-[#d18f18] hover:text-white"
-    }`}
-  >
-    {isLoading ? "Reiniciando..." : "REINICIAR ANTENA"}
-  </Button>
-
-  {/* Dialog para el feedback del reinicio */}
-  <Dialog open={!!responseMessage} onOpenChange={() => setResponseMessage(null)}>
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>
-          {responseType === "success" ? "¡Éxito!" : "Error"}
-        </DialogTitle>
-        <DialogDescription>{responseMessage}</DialogDescription>
-      </DialogHeader>
-      <DialogFooter>
-        <Button onClick={() => setResponseMessage(null)}>Cerrar</Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-</div>
+  {/* que pongo aqui? */}
+  
 
 
 </div>
