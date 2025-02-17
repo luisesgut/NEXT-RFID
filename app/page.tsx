@@ -34,6 +34,11 @@ export default function Home() {
   const [isManualSelect, setIsManualSelect] = useState(false); // Bandera para selección manual
   const [lastAutoSelectedId, setLastAutoSelectedId] = useState<string | null>(null);
   const [antennaStatus, setAntennaStatus] = useState<'connected' | 'disconnected'>('connected');
+  //reproceso
+  const [isReprocesoAlertOpen, setIsReprocesoAlertOpen] = useState(false); // Para el modal de reproceso
+  const [productsInReproceso, setProductsInReproceso] = useState<string[]>([]); // Un array para almacenar los productos en reproceso
+
+
 
 
 
@@ -204,6 +209,38 @@ useEffect(() => {
     }
   };
   
+  //funcion reproceso
+  const tarimaReproceso = async () => {
+    if (!selectedProduct || !selectedProduct.product.epc) {
+      console.error("No hay un producto seleccionado o EPC no disponible.");
+      return;
+    }
+  
+    try {
+      const epc = selectedProduct.product.epc;
+      const url = `http://172.16.10.31/api/RfidLabel/UpdateStatusByRFID/${epc}`;
+      const response = await axios.put(url, {
+        status: 8, // Cambiar el status a 8
+      });
+  
+      if (response.status === 200) {
+        console.log("Tarima enviada a reproceso con éxito.");
+        setAlertType("success");
+        setAlertMessage("La tarima ha sido enviada a reproceso exitosamente.");
+      } else {
+        throw new Error("Error al enviar la tarima a reproceso.");
+      }
+    } catch (error) {
+      console.error("Error al enviar la tarima a reproceso:", error);
+      setAlertType("error");
+      setAlertMessage("Hubo un error al mandar la tarima a reproceso.");
+    } finally {
+      setIsReprocesoAlertOpen(true);  // Abre el modal de reproceso
+      setTimeout(() => setIsReprocesoAlertOpen(false), 3000); // Cierra el modal después de 3 segundos
+    }
+  };
+  
+
   
   
   
@@ -290,32 +327,34 @@ useEffect(() => {
   {/* Listado de productos */}
   <div className="space-y-4 px-4">
   {products.map((product) => (
-    <Card
-      key={product.product.id}
-      className={`cursor-pointer transition-all rounded-lg shadow-md p-4 ${
-        product.product.operator !== "Indefinido"
-          ? "border-4 border-green-500 bg-green-50"
-          : "border-4 border-red-500 bg-red-50"
-      }`}
-      onClick={() => handleProductSelect(product)}
-    >
-      <CardContent>
-        {/* Información del producto */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-bold text-lg text-gray-800 mb-2">
-              {product.product.name}
-            </h3>
-            <p className="text-sm text-gray-600">EPC: {product.product.epc}</p>
-            <p className="text-sm text-gray-600">
-              Operador:{" "}
-              {product.product.operator !== "Indefinido"
-                ? product.product.operator
-                : "Sin asignar"}
-            </p>
-          </div>
-        </div>
-      </CardContent>
+   <Card
+   key={product.product.id}
+   className={`cursor-pointer transition-all rounded-lg shadow-md p-4 ${
+     product.product.operator !== "Indefinido" && !productsInReproceso.includes(product.product.id)
+       ? "border-4 border-green-500 bg-green-50"
+       : productsInReproceso.includes(product.product.id)
+       ? "border-4 border-blue-500 bg-blue-50" // Color azul cuando el producto está en reproceso
+       : "border-4 border-red-500 bg-red-50"
+   }`}
+   onClick={() => handleProductSelect(product)}
+ >
+     <CardContent>
+    {/* Información del producto */}
+    <div className="flex justify-between items-start">
+      <div>
+        <h3 className="font-bold text-lg text-gray-800 mb-2">
+          {product.product.name}
+        </h3>
+        <p className="text-sm text-gray-600">EPC: {product.product.epc}</p>
+        <p className="text-sm text-gray-600">
+          Operador:{" "}
+          {product.product.operator !== "Indefinido"
+            ? product.product.operator
+            : "Sin asignar"}
+        </p>
+      </div>
+    </div>
+  </CardContent>
     </Card>
   ))}
 </div>
@@ -384,8 +423,69 @@ useEffect(() => {
   </div>
 
   {/* que pongo aqui? */}
-  
+    {/* BOTON CAMBIAR STATUS*/}
+    <div className="mt-6 text-center">
+    <Button
+  onClick={() => setIsConfirmDialogOpen(true)} // Abrir el modal de confirmación
+  disabled={isLoading}
+  className={`font-bold py-8 px-8 rounded-lg shadow-md transition-all ${
+    isLoading
+      ? "bg-gray-400 cursor-not-allowed text-white"
+      : "bg-blue-500 text-white hover:bg-blue-700 hover:text-white"
+  }`}
+>
+  {isLoading ? "PROCESANDO..." : "MANDAR A REPROCESO"}
+</Button>
 
+{/* Dialog para confirmar la acción */}
+<Dialog open={isConfirmDialogOpen} onOpenChange={() => setIsConfirmDialogOpen(false)}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>
+        ¿Seguro que quieres mandar esta tarima a reproceso?
+      </DialogTitle>
+    </DialogHeader>
+    <DialogDescription>
+      <p><strong>Nombre del Producto:</strong> {selectedProduct?.product.name}</p>
+      <p><strong>Código del Producto:</strong> {selectedProduct?.product.claveProducto}</p>
+    </DialogDescription>
+    <DialogFooter>
+      <Button onClick={() => setIsConfirmDialogOpen(false)}>Cancelar</Button>
+      <Button
+  onClick={() => {
+    // Añadir el producto al array de productos en reproceso
+    setProductsInReproceso((prev) => [...prev, selectedProduct?.product.id]);
+    tarimaReproceso();
+    setIsConfirmDialogOpen(false); // Cerrar el modal
+  }}
+  className="bg-blue-500 hover:bg-blue-700 text-white"
+>
+  Confirmar
+</Button>
+
+
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+{/* Dialog para el feedback del reproceso */}
+<Dialog open={isReprocesoAlertOpen} onOpenChange={() => setIsReprocesoAlertOpen(false)}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>
+        {alertType === "success" ? "¡Éxito!" : "Error"}
+      </DialogTitle>
+      <DialogDescription>{alertMessage}</DialogDescription>
+    </DialogHeader>
+    <DialogFooter>
+      <Button onClick={() => setIsReprocesoAlertOpen(false)}>Cerrar</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+
+
+  
+  </div>
 
 </div>
 
