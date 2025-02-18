@@ -327,34 +327,39 @@ useEffect(() => {
   {/* Listado de productos */}
   <div className="space-y-4 px-4">
   {products.map((product) => (
-   <Card
-   key={product.product.id}
-   className={`cursor-pointer transition-all rounded-lg shadow-md p-4 ${
-     product.product.operator !== "Indefinido" && !productsInReproceso.includes(product.product.id)
-       ? "border-4 border-green-500 bg-green-50"
-       : productsInReproceso.includes(product.product.id)
-       ? "border-4 border-blue-500 bg-blue-50" // Color azul cuando el producto está en reproceso
-       : "border-4 border-red-500 bg-red-50"
-   }`}
-   onClick={() => handleProductSelect(product)}
- >
-     <CardContent>
-    {/* Información del producto */}
-    <div className="flex justify-between items-start">
-      <div>
-        <h3 className="font-bold text-lg text-gray-800 mb-2">
-          {product.product.name}
-        </h3>
-        <p className="text-sm text-gray-600">EPC: {product.product.epc}</p>
-        <p className="text-sm text-gray-600">
-          Operador:{" "}
-          {product.product.operator !== "Indefinido"
-            ? product.product.operator
-            : "Sin asignar"}
-        </p>
+  <Card
+    key={product.product.id}
+    className={`cursor-pointer transition-all rounded-lg shadow-md p-4 relative ${
+      product.product.operator !== "Indefinido" && !productsInReproceso.includes(product.product.id)
+        ? "border-4 border-green-500 bg-green-50"
+        : productsInReproceso.includes(product.product.id)
+        ? "border-4 border-blue-500 bg-blue-50"
+        : "border-4 border-red-500 bg-red-50"
+    }`}
+    onClick={() => handleProductSelect(product)}
+  >
+    {/* Indicador de selección con una flecha */}
+    {selectedProduct?.product.id === product.product.id && (
+      <div className="absolute bottom-2 right-2 bg-black text-white text-xs font-bold px-2 py-1 rounded-md flex items-center">
+        Seleccionado <span className="ml-1">🔽</span>
       </div>
-    </div>
-  </CardContent>
+    )}
+     <CardContent>
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="font-bold text-lg text-gray-800 mb-2">
+            {product.product.name}
+          </h3>
+          <p className="text-sm text-gray-600">EPC: {product.product.epc}</p>
+          <p className="text-sm text-gray-600">
+            Operador:{" "}
+            {product.product.operator !== "Indefinido"
+              ? product.product.operator
+              : "Sin asignar"}
+          </p>
+        </div>
+      </div>
+    </CardContent>
     </Card>
   ))}
 </div>
