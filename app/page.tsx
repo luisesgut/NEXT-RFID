@@ -240,6 +240,61 @@ useEffect(() => {
     }
   };
   
+  //sacar el ultimo regsitro de la BD
+  // Función para salvar el último registro
+// Función para salvar el último registro
+const handleSalvaUltimoRegistro = async () => {
+  try {
+    // Realizamos la petición al endpoint que devuelve el JSON.
+    const response = await axios.get('http://172.16.10.31/api/UltimoRegistro');
+    if (response.status !== 200) {
+      throw new Error("Error al obtener el último registro.");
+    }
+    const data = response.data;
+    if (!data || data.length === 0) {
+      console.error("No se recibió ningún registro.");
+      return;
+    }
+    // Tomamos el primer elemento del arreglo
+    const registro = data[0];
+
+    // Transformamos el registro para que tenga la estructura esperada.
+    const nuevoProducto = {
+      product: {
+        id: registro.id,
+        name: registro.nombreProducto,
+        claveProducto: registro.claveProducto,
+        epc: registro.rfid,
+        imageUrl: "", // Si tienes URL de imagen o un placeholder
+        operator: registro.operador, // Puedes hacer un split si requieres solo el nombre
+        netWeight: registro.pesoNeto,
+        pieces: registro.piezas,
+        unitOfMeasure: registro.uom,
+        area: registro.area,
+        printCard: registro.productPrintCard,
+        // Agrega más propiedades según tu modelo
+      }
+    };
+
+    // Verificar si el producto ya está en la lista (comparando por id)
+    const existe = products.some((p) => p.product.id === nuevoProducto.product.id);
+    if (existe) {
+      console.log("El último registro ya se encuentra en pantalla.");
+      return;
+    }
+
+    // Agregar el producto a la lista.
+    // Si usas un store (como Zustand), lo ideal es crear una función en el store, por ejemplo:
+    // addProduct(nuevoProducto);
+    // Si no, podrías tener un estado local, por ejemplo:
+    // setProducts((prevProducts) => [nuevoProducto, ...prevProducts]);
+    
+  } catch (error: any) {
+    console.error("Error al salvar el último registro", error);
+  }
+};
+
+
 
   
   
@@ -391,6 +446,16 @@ useEffect(() => {
       </DialogFooter>
     </DialogContent>
   </Dialog>
+</div>
+<div className="mt-6 text-center">
+
+  {/* BOTÓN SALVAR ÚLTIMO REGISTRO */}
+  <Button
+    onClick={handleSalvaUltimoRegistro}
+    className="mt-4 bg-green-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+  >
+    SALVAR ÚLTIMO REGISTRO
+  </Button>
 </div>
 
 </div>
