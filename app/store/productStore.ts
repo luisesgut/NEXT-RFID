@@ -8,9 +8,10 @@ interface ProductStore {
   selectProduct: (product: ProductData) => void; // Seleccionar un producto
   updateOperator: (productId: string, operator: string) => void; // Actualizar operador de un producto
   resetProducts: () => void; // Reiniciar la lista de productos
+  getProducts: () => ProductData[]; // Obtener la lista de productos
 }
 
-export const useProductStore = create<ProductStore>((set) => ({
+export const useProductStore = create<ProductStore>((set, get) => ({
   products: [],
   selectedProduct: null,
   addProduct: (product) =>
@@ -22,7 +23,7 @@ export const useProductStore = create<ProductStore>((set) => ({
     set((state) => ({
       products: state.products.map((p) =>
         p.product.id === productId
-          ? { ...p, product: { ...p.product, operator } } // Actualiza solo el producto correspondiente
+          ? { ...p, product: { ...p.product, operator } }
           : p
       ),
       selectedProduct:
@@ -31,4 +32,7 @@ export const useProductStore = create<ProductStore>((set) => ({
           : state.selectedProduct,
     })),
   resetProducts: () => set({ products: [], selectedProduct: null }),
+
+  // 🔥 Nueva función para obtener productos actualizados
+  getProducts: () => get().products,
 }));

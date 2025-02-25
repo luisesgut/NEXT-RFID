@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation'
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CheckCircle2, XCircle } from 'lucide-react'
 import { useProductStore } from '../app/store/productStore'
@@ -16,9 +16,10 @@ import { Operator } from '../app/types/operator'
 
 export default function Home() {
   
+  
   const router = useRouter()
   const connection = useSignalRConnection()
-  const { products, selectedProduct, selectProduct, updateOperator } = useProductStore()
+  const { products, selectedProduct, getProducts, selectProduct, updateOperator, addProduct } = useProductStore();
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [isAlertOpen, setIsAlertOpen] = useState(false)
   const [alertType, setAlertType] = useState<'success' | 'error'>('success')
@@ -37,7 +38,8 @@ export default function Home() {
   //reproceso
   const [isReprocesoAlertOpen, setIsReprocesoAlertOpen] = useState(false); // Para el modal de reproceso
   const [productsInReproceso, setProductsInReproceso] = useState<string[]>([]); // Un array para almacenar los productos en reproceso
-
+  const [isFetching, setIsFetching] = useState(false); // Estado para el modal de carga
+  const [isAlreadyDisplayed, setIsAlreadyDisplayed] = useState(false); // Estado para el modal de "ya está en pantalla"
 
 
 
@@ -240,82 +242,76 @@ useEffect(() => {
     }
   };
   
-  //sacar el ultimo regsitro de la BD
-  // Función para salvar el último registro
-// Función para salvar el último registro
-const handleSalvaUltimoRegistro = async () => {
-  try {
-    // Realizamos la petición al endpoint que devuelve el JSON.
-    const response = await axios.get('http://172.16.10.31/api/UltimoRegistro');
-    if (response.status !== 200) {
-      throw new Error("Error al obtener el último registro.");
-    }
-    const data = response.data;
-    if (!data || data.length === 0) {
-      console.error("No se recibió ningún registro.");
-      return;
-    }
-    // Tomamos el primer elemento del arreglo
-    const registro = data[0];
-
-    // Transformamos el registro para que tenga la estructura esperada.
-    const nuevoProducto = {
-      product: {
-        id: registro.id,
-        name: registro.nombreProducto,
-        claveProducto: registro.claveProducto,
-        epc: registro.rfid,
-        imageUrl: "", // Si tienes URL de imagen o un placeholder
-        operator: registro.operador, // Puedes hacer un split si requieres solo el nombre
-        netWeight: registro.pesoNeto,
-        pieces: registro.piezas,
-        unitOfMeasure: registro.uom,
-        area: registro.area,
-        printCard: registro.productPrintCard,
-        // Agrega más propiedades según tu modelo
-      }
-    };
-
-    // Verificar si el producto ya está en la lista (comparando por id)
-    const existe = products.some((p) => p.product.id === nuevoProducto.product.id);
-    if (existe) {
-      console.log("El último registro ya se encuentra en pantalla.");
-      return;
-    }
-
-    // Agregar el producto a la lista.
-    // Si usas un store (como Zustand), lo ideal es crear una función en el store, por ejemplo:
-    // addProduct(nuevoProducto);
-    // Si no, podrías tener un estado local, por ejemplo:
-    // setProducts((prevProducts) => [nuevoProducto, ...prevProducts]);
-    
-  } catch (error: any) {
-    console.error("Error al salvar el último registro", error);
-  }
-};
-
-
-
+  //sacar ultimo registro de la BD
+  const handleSalvaUltimoRegistro = async () => {
+    setIsFetching(true);
   
-  
-  
-  const validateBeforeStop = () => {
-    const pendingProducts = products.filter(
-      (p) => p.product.operator === "Indefinido"
-    );
-  
-    if (pendingProducts.length > 0) {
-      setAlertType("error");
-      setAlertMessage(
-        "Todos los productos deben tener un operador asignado antes de detener las entradas."
+    try {
+      const response = await axios.get(
+        "http://172.16.10.31/api/ProdExtraInfo/UltimosRegistrosPorTrazabilidad"
       );
-      setIsAlertOpen(true);
-    } else {
-      setIsConfirmDialogOpen(true);
+  
+      if (response.status !== 200) {
+        throw new Error("Error al obtener el último registro.");
+      }
+  
+      const data = response.data;
+      if (!data || data.length === 0) {
+        console.error("No se recibió ningún registro.");
+        return;
+      }
+  
+      const registro = data[0];
+  
+      const nuevoProducto: ProductData = {
+        success: true,
+        product: {
+          id: registro.id.toString(),
+          name: registro.nombreProducto || "Producto sin nombre",
+          epc: registro.rfid || "", // 🔥 EPC único
+          status: "pending",
+          imageUrl: "",
+          netWeight: registro.pesoNeto?.toString() || "N/A",
+          pieces: registro.piezas?.toString() || "N/A",
+          unitOfMeasure: registro.uom || "N/A",
+          printCard: registro.productPrintCard || "N/A",
+          operator: "Indefinido",
+          tipoEtiqueta: "N/A",
+          area: registro.area || "N/A",
+          claveProducto: registro.claveProducto || "N/A",
+          pesoBruto: registro.pesoBruto?.toString() || "N/A",
+          pesoTarima: registro.pesoTarima?.toString() || "N/A",
+          fechaEntrada: registro.fecha?.split("T")[0] || new Date().toISOString(),
+          horaEntrada: registro.fecha?.split("T")[1]?.split(".")[0] || new Date().toLocaleTimeString(),
+          rfid: registro.rfid || "",
+        },
+        operatorInfo: null,
+        rssi: 0,
+        antennaPort: 1,
+        timestamp: new Date().toISOString(),
+      };
+  
+      // 🔥 Obtener la lista más reciente de productos
+      const updatedProducts = getProducts();
+  
+      // 🔍 Verificar si el EPC ya está en la pantalla
+      const existe = updatedProducts.some((p) => p.product.epc === nuevoProducto.product.epc);
+      
+      if (existe) {
+        setIsAlreadyDisplayed(true); // Mostrar modal de advertencia
+      } else {
+        addProduct(nuevoProducto);
+  
+        if (updatedProducts.length === 0) {
+          selectProduct(nuevoProducto);
+        }
+      }
+    } catch (error) {
+      console.error("Error al salvar el último registro", error);
+    } finally {
+      setIsFetching(false);
     }
   };
-  
-
   const handleRestartAntenna = async () => {
     setIsLoading(true); // Mostrar estado de carga
     setResponseMessage(null); // Limpiar cualquier mensaje previo
@@ -369,15 +365,52 @@ const handleSalvaUltimoRegistro = async () => {
     className="object-contain"
   />
 </div>
+
     {/* Mensaje de advertencia */}
     <div className="mt-4 p-4 bg-yellow-200 text-yellow-800 rounded-lg text-center font-semibold">
           ⚠️ Favor de asegurarse que la antena detecte correctamente la etiqueta. Si no la detecta a la primera, vuelva a pasar hasta que sea escaneada.
         </div>
+        
 
   {/* Título principal */}
   <h2 className="text-3xl font-bold mb-8 text-[#133d3d] text-center border-b-4 border-[#e1a21b] pb-4">
     Productos Entrantes
+    <div className="text-center">
+
+  {/* BOTÓN SALVAR ÚLTIMO REGISTRO */}
+  <Button
+    onClick={handleSalvaUltimoRegistro}
+    className="bg-green-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+  >
+    SALVAR ÚLTIMO REGISTRO
+  </Button>
+   {/* Modal de carga */}
+   <Dialog open={isFetching} onOpenChange={() => setIsFetching(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cargando...</DialogTitle>
+            <DialogDescription>Obteniendo el último registro, por favor espera.</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de producto ya mostrado */}
+      <Dialog open={isAlreadyDisplayed} onOpenChange={() => setIsAlreadyDisplayed(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Producto ya mostrado</DialogTitle>
+            <DialogDescription>Este producto ya está en la interfaz y no será agregado nuevamente.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setIsAlreadyDisplayed(false)}>Aceptar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+</div>
   </h2>
+
+  
 
   {/* Listado de productos */}
   <div className="space-y-4 px-4">
@@ -447,16 +480,7 @@ const handleSalvaUltimoRegistro = async () => {
     </DialogContent>
   </Dialog>
 </div>
-<div className="mt-6 text-center">
 
-  {/* BOTÓN SALVAR ÚLTIMO REGISTRO */}
-  <Button
-    onClick={handleSalvaUltimoRegistro}
-    className="mt-4 bg-green-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-  >
-    SALVAR ÚLTIMO REGISTRO
-  </Button>
-</div>
 
 </div>
 
