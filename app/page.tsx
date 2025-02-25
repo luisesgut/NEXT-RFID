@@ -360,15 +360,15 @@ const handleSalvaUltimoRegistro = async () => {
     <div className="flex h-screen bg-gray-100">
        <div className="w-1/3 p-0 overflow-y-auto border-r bg-white">
   {/* Encabezado con el logo */}
-  <div className="bg-[#153E3E] py-5 px-6 w-full flex items-center justify-center">
-    <img
-      src="https://darsis.us/bioflex/wp-content/uploads/2023/05/logo_b.png"
-      alt="Logo Bioflex"
-      width={250}
-      height={100}
-      className="object-contain"
-    />
-  </div>
+<div className="bg-[#153E3E] py-5 px-6 w-full flex items-center justify-center">
+  <Image
+    src="/img/logo_b.png" // Ruta relativa desde la carpeta public
+    alt="Logo Bioflex"
+    width={250}
+    height={100}
+    className="object-contain"
+  />
+</div>
     {/* Mensaje de advertencia */}
     <div className="mt-4 p-4 bg-yellow-200 text-yellow-800 rounded-lg text-center font-semibold">
           ⚠️ Favor de asegurarse que la antena detecte correctamente la etiqueta. Si no la detecta a la primera, vuelva a pasar hasta que sea escaneada.
