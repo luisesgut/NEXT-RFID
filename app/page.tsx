@@ -13,10 +13,15 @@ import { useProductStore } from '../app/store/productStore'
 import { useSignalRConnection } from '../app/hooks/useSignalRConnection'
 import { ProductData } from '../app/types/product'
 import { Operator } from '../app/types/operator'
+import { Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+
+
 
 export default function Home() {
   
-  
+  //modal de carga
+  const [isLoadingModal, setIsLoadingModal] = useState(true);
   const router = useRouter()
   const connection = useSignalRConnection()
   const { products, selectedProduct, getProducts, selectProduct, updateOperator, addProduct } = useProductStore();
@@ -42,6 +47,21 @@ export default function Home() {
   const [isAlreadyDisplayed, setIsAlreadyDisplayed] = useState(false); // Estado para el modal de "ya está en pantalla"
 
 
+  const handleGoBack = () => {
+    router.push("/dashboard"); // 🔀 Primero redirigir
+    setTimeout(() => {
+      window.location.reload(); // 🔄 Luego recargar al llegar a Dashboard
+    }, 300); // 🕐 Pequeño retraso para que la redirección se complete
+  };
+  //carga
+   // Simular carga durante 3 segundos
+   useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoadingModal(false); // Ocultar modal después de 3 segundos
+    }, 3000);
+
+    return () => clearTimeout(timer); // Limpiar el temporizador al desmontar
+  }, []);
 
 
   useEffect(() => {
@@ -291,10 +311,10 @@ useEffect(() => {
         timestamp: new Date().toISOString(),
       };
   
-      // 🔥 Obtener la lista más reciente de productos
+      // Obtener la lista más reciente de productos
       const updatedProducts = getProducts();
   
-      // 🔍 Verificar si el EPC ya está en la pantalla
+      // Verificar si el EPC ya está en la pantalla
       const existe = updatedProducts.some((p) => p.product.epc === nuevoProducto.product.epc);
       
       if (existe) {
@@ -353,7 +373,23 @@ useEffect(() => {
   }
 
   return (
+    
     <div className="flex h-screen bg-gray-100">
+      <Dialog open={isLoadingModal}>
+  <DialogContent className="bg-gray-900 text-white flex flex-col items-center p-8 rounded-lg">
+    {/* 🔹 Agregamos un título para accesibilidad */}
+    <DialogHeader>
+      <DialogTitle className="text-xl font-bold">Conectando con SignalR...</DialogTitle>
+      <DialogDescription className="text-gray-300 text-center">
+        Por favor, espera mientras se establece la conexión.
+      </DialogDescription>
+    </DialogHeader>
+
+    <Loader2 className="w-16 h-16 animate-spin text-yellow-400 mt-4" />
+  </DialogContent>
+</Dialog>
+
+
        <div className="w-1/3 p-0 overflow-y-auto border-r bg-white">
   {/* Encabezado con el logo */}
 <div className="bg-[#153E3E] py-5 px-6 w-full flex items-center justify-center">
@@ -485,7 +521,15 @@ useEffect(() => {
 </div>
 
       <div className="w-2/3 p-4 overflow-y-auto">
+     
       <p className="text-3xl font-bold text-black-600 mb-4 text-center">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase()}</p>
+      <Button
+  onClick={handleGoBack}
+  className="bg-[#1E3A8A] hover:bg-[#1A2E6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
+>
+  <ArrowLeft className="w-5 h-5" /> Regresar al Dashboard
+</Button>
+
         {selectedProduct ? (
           <div className="space-y-6 bg-white p-6 rounded-lg shadow-lg">
             <h3 className="font-bold text-2xl text-[#133d3d] bg-[#e1a21b] py-3 px-6 rounded-lg text-center shadow-md">
