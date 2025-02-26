@@ -1,173 +1,164 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, RefreshCcw, Clock, ChevronRight } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { motion } from "framer-motion"
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { RefreshCcw, Calendar, Truck, ChevronLeft, ChevronRight, Search } from "lucide-react";
 
-
-// Definimos la estructura de los datos recibidos desde el endpoint
 interface Entrada {
-  id: number
-  operador: string
-  lista_Trazabilidades: string
-  estatus: string
-  noEPCs: number
-  createdAt: string
+  id: number;
+  numTarima: number;
+  fechaEntrada: string;
+  trazabilidad: string;
+  prodEtiquetaRFID: {
+    nombreProducto: string;
+    claveProducto: string;
+    area: string;
+    pesoNeto: number;
+    piezas: number;
+    rfid: string;
+    status: number;
+  };
 }
 
 export default function EntradasPendientes() {
-  const [entradas, setEntradas] = useState<Entrada[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter();
+  const [entradas, setEntradas] = useState<Entrada[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fechaInicio, setFechaInicio] = useState(getTodayDate());
+  const [fechaFin, setFechaFin] = useState(getTodayDate());
+  const [currentPage, setCurrentPage] = useState<{ [key: number]: number }>({
+    2: 1,
+    3: 1,
+    4: 1,
+    8: 1,
+  });
 
-  // Función para manejar la selección de una entrada
-  const handleSelectEntrada = (entrada: Entrada) => {
-    router.push(`/?id=${entrada.id}`);
-  };
+  // 🔍 Estado de búsqueda global
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Función para cargar los datos desde el endpoint
-  const cargarEntradas = async () => {
-    setIsLoading(true)
-    setError(null)
+  const itemsPerPage = 5;
 
-    try {
-      const response = await fetch("http://172.16.10.31/api/ProductOutputReview/ByStatus")
-      if (!response.ok) {
-        throw new Error("Error al obtener los datos")
-      }
-      
-      const data: Entrada[] = await response.json()
-      setEntradas(data)
-    } catch (err) {
-      setError("No se pudo obtener la información. Verifica la conexión con el servidor.")
-    } finally {
-      setIsLoading(false)
-    }
+  function getTodayDate() {
+    return new Date().toISOString().split("T")[0];
   }
 
+  const construirURL = () => {
+    return `http://172.16.10.31/api/ProdExtraInfo/FiltrarTodoEntradaAlmacenPT?fechainicio=${fechaInicio}&fechafin=${fechaFin}`;
+  };
+
+  const cargarEntradas = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const url = construirURL();
+      console.log("Consultando:", url);
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Error al obtener los datos");
+
+      const data: Entrada[] = await response.json();
+      console.log("Datos recibidos:", data);
+
+      if (data.length === 0) {
+        console.warn("⚠️ La API devolvió un array vacío.");
+      }
+
+      setEntradas(data);
+    } catch (err) {
+      setError("No se pudo obtener la información. Verifica la conexión con el servidor.");
+      console.error("Error al cargar datos:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    cargarEntradas()
-  }, [])
+    cargarEntradas();
+  }, []);
+
+  // 📌 Agrupar datos por status usando useMemo
+  const entradasAgrupadas = useMemo(() => {
+    return {
+      2: entradas.filter((e) => e.prodEtiquetaRFID?.status === 2),
+      3: entradas.filter((e) => e.prodEtiquetaRFID?.status === 3),
+      4: entradas.filter((e) => e.prodEtiquetaRFID?.status === 4),
+      8: entradas.filter((e) => e.prodEtiquetaRFID?.status === 8),
+    } as Record<number, Entrada[]>;
+  }, [entradas]);
+
+  // 📌 Función para manejar la paginación
+  const handlePageChange = (status: number, newPage: number) => {
+    setCurrentPage((prev) => ({ ...prev, [status]: newPage }));
+  };
 
   return (
-    <div className="min-h-screen bg-[rgb(21,62,62)] flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8">
-      
-      {/* Encabezado con el logo */}
-      <div className="bg-[#153E3E] py-5 px-6 w-full flex items-center justify-center">
-        <img
-          src="https://darsis.us/bioflex/wp-content/uploads/2023/05/logo_b.png"
-          alt="Logo Bioflex"
-          width={250}
-          height={100}
-          className="object-contain"
+    <div className="min-h-screen bg-[#153E3E] flex flex-col items-center py-12 px-4">
+      <div className="text-center mt-6 mb-10 flex flex-col items-center justify-center">
+        <img src="/img/logo_b.png" alt="Logo Bioflex" width={250} height={100} className="object-contain mb-4" />
+        <h1 className="text-5xl font-bold text-white tracking-wide uppercase">Entradas Almacén</h1>
+      </div>
+
+      {/* 🔍 Barra de búsqueda global */}
+      <div className="w-full max-w-2xl bg-white rounded-full px-4 py-2 shadow-md mb-6 flex items-center">
+        <Search className="text-gray-500 mr-2" />
+        <input
+          type="text"
+          placeholder="Buscar por producto, código o trazabilidad..."
+          className="w-full border-none focus:outline-none px-2 text-gray-700"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      {/* Header principal */}
-      <div className="text-center mt-6 mb-10">
-        <h1 className="text-5xl font-bold text-white tracking-wide uppercase">
-          Entradas Automáticas
-        </h1>
-        <p className="mt-2 text-lg text-[#e1a21b] font-medium">
-          Gestión de entradas en tiempo real
-        </p>
-      </div>
+      {/* Mostrar Tarimas por Status con paginación */}
+      <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+        {[
+          { title: "🟢 Recien Ingresadas", color: "bg-green-100 border-green-500", status: 2 },
+          { title: "🔵 Asignación de Ubicación", color: "bg-blue-100 border-blue-500", status: 3 },
+          { title: "🟡 Dadas de Alta en SAP", color: "bg-yellow-100 border-yellow-500", status: 4 },
+          { title: "🔴 Reproceso", color: "bg-red-100 border-red-500", status: 8 }
+        ].map((section) => {
+          const totalPages = Math.ceil(entradasAgrupadas[section.status].length / itemsPerPage);
+          const startIndex = (currentPage[section.status] - 1) * itemsPerPage;
 
+          // 📌 Filtrar datos por búsqueda solo en la categoría actual
+          const filteredData = entradasAgrupadas[section.status].filter((entrada) =>
+            entrada.prodEtiquetaRFID.nombreProducto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            entrada.prodEtiquetaRFID.claveProducto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            entrada.trazabilidad.toLowerCase().includes(searchTerm.toLowerCase())
+          );
 
-      {/* Contenedor de tarjetas */}
-      <div className="max-w-5xl w-full bg-white shadow-2xl rounded-2xl p-8">
-        {/* Título de la sección */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-semibold text-[#e1a21b]">
-            Entradas Pendientes
-          </h2>
-          <p className="mt-2 text-lg text-gray-700">
-            Actualmente tienes <span className="font-semibold text-[#15403f]">{entradas.length}</span> tareas por completar.
-          </p>
-        </div>
+          return (
+            <div key={section.title} className={`p-4 rounded-lg shadow-md border-4 ${section.color}`}>
+              <h2 className="text-xl font-bold text-gray-700 text-center">{section.title}</h2>
+              <p className="text-gray-600 text-center">Total: {filteredData.length}</p>
 
-      {/* BOTON DE ACTUALIZAR */}
-        <div className="mb-6 flex justify-end">
-          <Button
-            onClick={cargarEntradas}
-            disabled={isLoading}
-            className="bg-[#e1a21b] text-white hover:bg-[#c78d18] transition-all shadow-md"
-          >
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Actualizar
-          </Button>
-        </div>
+              <div className="space-y-3 mt-4">
+                {filteredData.slice(startIndex, startIndex + itemsPerPage).map((entrada) => (
+                  <Card key={entrada.id} className="border border-gray-300 shadow-md">
+                    <CardContent className="p-4 text-gray-800">
+                      <p><strong>Producto:</strong> {entrada.prodEtiquetaRFID.nombreProducto}</p>
+                      <p><strong>Código:</strong> {entrada.prodEtiquetaRFID.claveProducto}</p>
+                      <p><strong>Hora de Entrada:</strong> {new Date(entrada.fechaEntrada).toLocaleTimeString()}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
 
-        {/* Estado de carga */}
-        {isLoading && (
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i} className="w-full bg-gray-100 border border-gray-300 shadow-sm">
-                <CardHeader>
-                  <Skeleton className="h-4 w-2/3 bg-gray-300" />
-                  <Skeleton className="h-4 w-full mt-2 bg-gray-300" />
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-5 w-5 text-[#e1a21b]" />
-            <AlertTitle className="text-gray-800">Error</AlertTitle>
-            <AlertDescription className="text-gray-600">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Contenido */}
-        {!isLoading && !error && (
-          <motion.div
-            className="grid gap-6 md:grid-cols-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            {entradas.map((entrada, index) => (
-  <motion.div
-    key={entrada.id}
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.3, delay: index * 0.1 }}
-  >
-    <Card 
-      className="w-full bg-gray-100 border border-gray-300 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
-      onClick={() => handleSelectEntrada(entrada)} // Agregar la navegación aquí
-    >
-      <CardHeader className="bg-[#e1a21b] text-white p-4 rounded-t-2xl">
-        <CardTitle className="flex items-center justify-between text-lg font-semibold">
-          Operador: {entrada.operador}
-          <ChevronRight className="h-5 w-5 text-white" />
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 text-gray-800">
-        <CardDescription>
-          <p><strong className="text-[#15403f]">Estatus:</strong> {entrada.estatus}</p>
-          <p><strong className="text-[#15403f]">Número de Tarimas:</strong> {entrada.noEPCs}</p>
-        </CardDescription>
-        <div className="flex items-center text-sm text-gray-600 mt-4">
-          <Clock className="mr-2 h-4 w-4 text-[#e1a21b]" />
-          Creado: {new Date(entrada.createdAt).toLocaleString()}
-        </div>
-      </CardContent>
-    </Card>
-  </motion.div>
-            ))}
-          </motion.div>
-        )}
+              {/* Paginación */}
+              {totalPages > 1 && (
+                <div className="flex justify-center mt-4 space-x-2">
+                  <Button disabled={currentPage[section.status] === 1} onClick={() => handlePageChange(section.status, currentPage[section.status] - 1)}><ChevronLeft /></Button>
+                  <span>{currentPage[section.status]} / {totalPages}</span>
+                  <Button disabled={currentPage[section.status] === totalPages} onClick={() => handlePageChange(section.status, currentPage[section.status] + 1)}><ChevronRight /></Button>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
-  )
+  );
 }
