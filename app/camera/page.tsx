@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { CheckCircle2, XCircle, Camera, UserCheck, QrCode, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
+import { CheckCircle2, XCircle, Camera, UserCheck, QrCode, Loader2, ArrowRight, ArrowLeft, ClipboardList } from "lucide-react";
 import axios from "axios";
 import { Html5Qrcode } from "html5-qrcode";
 import Swal from "sweetalert2";
@@ -34,6 +34,11 @@ export default function AsociarTarima() {
     setTimeout(() => {
       window.location.reload(); // 🔄 Luego recargar al llegar a Dashboard
     }, 300); // 🕐 Pequeño retraso para que la redirección se complete
+  };
+
+  // Función para navegar a la página de gestión de tarimas
+  const handleGoToTarimas = () => {
+    router.push("/entradas-pendientes");
   };
 
   // Obtener operadores al cargar la pantalla
@@ -209,15 +214,25 @@ export default function AsociarTarima() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#153E3E] to-[#0d2b2b] flex flex-col items-center py-8 px-4">
-      {/* Header con logo y botón de regresar */}
+      {/* Header con logo y botones de navegación */}
       <div className="w-full max-w-4xl flex flex-col sm:flex-row justify-between items-center mb-8">
         <div className="flex flex-col sm:flex-row items-center gap-4">
-          <Button
-            onClick={handleGoBack}
-            className="bg-[#1E3A8A] hover:bg-[#1A2E6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
-          >
-            <ArrowLeft className="w-5 h-5" /> Regresar al Dashboard
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={handleGoBack}
+              className="bg-[#1E3A8A] hover:bg-[#1A2E6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
+            >
+              <ArrowLeft className="w-5 h-5" /> Regresar al Dashboard
+            </Button>
+            
+            {/* Nuevo botón para ir a gestionar tarimas */}
+            <Button
+              onClick={handleGoToTarimas}
+              className="bg-[#1E5F8A] hover:bg-[#1A4F6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
+            >
+              <ClipboardList className="w-5 h-5" /> Gestionar Tarimas
+            </Button>
+          </div>
           
           <h1 className="text-4xl md:text-5xl font-bold text-white tracking-wide uppercase mb-4 sm:mb-0 text-center sm:text-left">
             Asociación de <span className="text-[#e1a21b]">Tarima</span>
