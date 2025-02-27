@@ -8,13 +8,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle2, XCircle, Camera, ArrowLeft } from 'lucide-react'
+// Añade un nuevo import para el icono de eliminar
+import { CheckCircle2, XCircle, Camera, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import { useProductStore } from '../app/store/productStore'
 import { useSignalRConnection } from '../app/hooks/useSignalRConnection'
 import { ProductData } from '../app/types/product'
 import { Operator } from '../app/types/operator'
-import { Loader2 } from "lucide-react";
-
 
 
 export default function Home() {
@@ -23,7 +22,7 @@ export default function Home() {
   const [isLoadingModal, setIsLoadingModal] = useState(true);
   const router = useRouter()
   const connection = useSignalRConnection()
-  const { products, selectedProduct, getProducts, selectProduct, updateOperator, addProduct } = useProductStore();
+  const { products, selectedProduct, getProducts, selectProduct, updateOperator, addProduct , removeProduct} = useProductStore();
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [isAlertOpen, setIsAlertOpen] = useState(false)
   const [alertType, setAlertType] = useState<'success' | 'error'>('success')
@@ -44,6 +43,10 @@ export default function Home() {
   const [productsInReproceso, setProductsInReproceso] = useState<string[]>([]); // Un array para almacenar los productos en reproceso
   const [isFetching, setIsFetching] = useState(false); // Estado para el modal de carga
   const [isAlreadyDisplayed, setIsAlreadyDisplayed] = useState(false); // Estado para el modal de "ya está en pantalla"
+  //eliminar
+  // Luego agrega estos estados al principio de tu componente, junto a tus otros estados
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
 
   const handleGoBack = () => {
@@ -52,6 +55,28 @@ export default function Home() {
       window.location.reload(); // 🔄 Luego recargar al llegar a Dashboard
     }, 300); // 🕐 Pequeño retraso para que la redirección se complete
   };
+
+  //eliminar card
+  // Luego, implementa la función para manejar la eliminación
+  const handleDeleteProduct = (e: React.MouseEvent<HTMLButtonElement>, productId: string) => {
+    e.stopPropagation(); // Evitar que el evento se propague y active la selección de card
+    setProductToDelete(productId);
+    setIsDeleteDialogOpen(true);
+  };
+
+//eliminar
+// Función para confirmar la eliminación
+const confirmDeleteProduct = () => {
+  if (productToDelete) {
+    removeProduct(productToDelete);
+    setAlertType('success');
+    setAlertMessage('Tarima eliminada correctamente.');
+    setIsAlertOpen(true);
+    setTimeout(() => setIsAlertOpen(false), 3000);
+  }
+  setIsDeleteDialogOpen(false);
+  setProductToDelete(null);
+};
 
   // Función para navegar a la página de cámara para añadir tarima manual
   const handleGoToCamera = () => {
@@ -482,7 +507,17 @@ useEffect(() => {
         Seleccionado <span className="ml-1">🔽</span>
       </div>
     )}
-     <CardContent>
+    
+    {/* NUEVO: Botón de eliminar en la esquina superior derecha */}
+    <button 
+      onClick={(e) => handleDeleteProduct(e, product.product.id)}
+      className="absolute top-2 right-2 bg-red-500 hover:bg-red-700 text-white rounded-full p-1 transition-colors"
+      title="Eliminar tarima"
+    >
+      <Trash2 className="w-4 h-4" />
+    </button>
+    
+    <CardContent>
       <div className="flex justify-between items-start">
         <div>
           <h3 className="font-bold text-lg text-gray-800 mb-2">
@@ -498,8 +533,8 @@ useEffect(() => {
         </div>
       </div>
     </CardContent>
-    </Card>
-  ))}
+  </Card>
+))}
 </div>
 <div className="mt-6 text-center">
           <p className="text-red-600 font-semibold text-lg mb-2">¿La antena no detecta el producto?</p>
@@ -529,6 +564,32 @@ useEffect(() => {
       </DialogFooter>
     </DialogContent>
   </Dialog>
+
+  {/* Dialog para confirmar eliminación */}
+<Dialog open={isDeleteDialogOpen} onOpenChange={() => setIsDeleteDialogOpen(false)}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Confirmar eliminación</DialogTitle>
+      <DialogDescription>
+        ¿Estás seguro que deseas eliminar esta tarima de la lista? Esta acción no se puede deshacer.
+      </DialogDescription>
+    </DialogHeader>
+    <DialogFooter>
+      <Button 
+        onClick={() => setIsDeleteDialogOpen(false)}
+        className="bg-gray-500 hover:bg-gray-700 text-white"
+      >
+        Cancelar
+      </Button>
+      <Button 
+        onClick={confirmDeleteProduct}
+        className="bg-red-500 hover:bg-red-700 text-white"
+      >
+        Eliminar
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 </div>
 
 
