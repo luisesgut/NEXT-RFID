@@ -8,13 +8,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { CheckCircle2, XCircle, Camera, ArrowLeft } from 'lucide-react'
 import { useProductStore } from '../app/store/productStore'
 import { useSignalRConnection } from '../app/hooks/useSignalRConnection'
 import { ProductData } from '../app/types/product'
 import { Operator } from '../app/types/operator'
 import { Loader2 } from "lucide-react";
-import { ArrowLeft } from "lucide-react";
 
 
 
@@ -53,6 +52,12 @@ export default function Home() {
       window.location.reload(); // 🔄 Luego recargar al llegar a Dashboard
     }, 300); // 🕐 Pequeño retraso para que la redirección se complete
   };
+
+  // Función para navegar a la página de cámara para añadir tarima manual
+  const handleGoToCamera = () => {
+    router.push("/camera");
+  };
+  
   //carga
    // Simular carga durante 3 segundos
    useEffect(() => {
@@ -409,17 +414,27 @@ useEffect(() => {
         
 
   {/* Título principal */}
-  <h2 className="text-3xl font-bold mb-8 text-[#133d3d] text-center border-b-4 border-[#e1a21b] pb-4">
+  <h2 className="text-3xl font-bold mb-4 text-[#133d3d] text-center border-b-4 border-[#e1a21b] pb-4">
     Productos Entrantes
-    <div className="text-center">
+    <div className="text-center flex flex-col sm:flex-row justify-center gap-2 mt-2">
 
-  {/* BOTÓN SALVAR ÚLTIMO REGISTRO */}
-  <Button
-    onClick={handleSalvaUltimoRegistro}
-    className="bg-green-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-  >
-    SALVAR ÚLTIMO REGISTRO
-  </Button>
+      {/* BOTÓN SALVAR ÚLTIMO REGISTRO */}
+      <Button
+        onClick={handleSalvaUltimoRegistro}
+        className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+      >
+        SALVAR ÚLTIMO REGISTRO
+      </Button>
+
+      {/* NUEVO BOTÓN AGREGAR TARIMA MANUAL */}
+      <Button
+        onClick={handleGoToCamera}
+        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-1"
+      >
+        <Camera className="w-4 h-4" /> AGREGAR TARIMA MANUAL
+      </Button>
+    </div>
+
    {/* Modal de carga */}
    <Dialog open={isFetching} onOpenChange={() => setIsFetching(false)}>
         <DialogContent>
@@ -443,7 +458,6 @@ useEffect(() => {
         </DialogContent>
       </Dialog>
 
-</div>
   </h2>
 
   
@@ -733,4 +747,3 @@ useEffect(() => {
     </div>
   )
 }
-
