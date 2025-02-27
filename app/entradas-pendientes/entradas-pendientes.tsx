@@ -72,6 +72,11 @@ export default function EntradasPendientes() {
     }, 300); // 🕐 Pequeño retraso para que la redirección se complete
   };
 
+  // Función para actualizar la página
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
   function getTodayDate() {
     return new Date().toISOString().split("T")[0];
   }
@@ -275,12 +280,20 @@ export default function EntradasPendientes() {
   return (
     <div className="min-h-screen bg-[#153E3E] flex flex-col items-center py-12 px-4">
       {/* Botón de regreso y encabezado */}
-      <div className="w-full max-w-6xl flex justify-start mb-4">
+      <div className="w-full max-w-6xl flex justify-between mb-4">
         <Button
           onClick={handleGoBack}
           className="bg-[#1E3A8A] hover:bg-[#1A2E6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
         >
           <ArrowLeft className="w-5 h-5" /> Regresar al Dashboard
+        </Button>
+        
+        {/* Nuevo botón de actualizar */}
+        <Button
+          onClick={handleRefresh}
+          className="bg-[#1E5F8A] hover:bg-[#1A4F6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
+        >
+          <RefreshCcw className="w-5 h-5" /> Actualizar
         </Button>
       </div>
 
