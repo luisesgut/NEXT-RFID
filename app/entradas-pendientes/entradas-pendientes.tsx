@@ -594,7 +594,7 @@ export default function EntradasPendientes() {
                 <p><strong>Fecha de Entrada:</strong> {new Date(entrada.fechaEntrada).toLocaleDateString()}</p>
                 <p><strong>Hora de Entrada:</strong> {new Date(entrada.fechaEntrada).toLocaleTimeString()}</p>
                 <p><strong>Trazabilidad:</strong> {entrada.trazabilidad}</p>
-                <p><strong>Piezas:</strong> {entrada.prodEtiquetaRFID.piezas.toLocaleString()}</p>
+                <p><strong>Peso Neto</strong> {entrada.prodEtiquetaRFID.pesoNeto.toLocaleString()} KG </p>
 
                 {/* Si el operadorEntrada es null, mostrar selector */}
                 {entrada.operadorEntrada ? (
