@@ -2,18 +2,23 @@
 
 import Image from 'next/image'
 import axios from 'axios'
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from 'next/navigation'
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 // Añade un nuevo import para el icono de eliminar
-import { CheckCircle2, XCircle, Camera, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
-import { useProductStore } from '../app/store/productStore'
+import { CheckCircle2, XCircle, Camera, ArrowLeft, Loader2, Trash2, UserCheck } from 'lucide-react';import { useProductStore } from '../app/store/productStore'
 import { useSignalRConnection } from '../app/hooks/useSignalRConnection'
 import { ProductData } from '../app/types/product'
 import { Operator } from '../app/types/operator'
+//sesion
+import ProtectedRoute from "@/components/ui/ProtectedRoute"; // Importa el HOC
+import { useSession, signOut } from "next-auth/react";
+
+
+
 
 
 export default function Home() {
@@ -47,6 +52,12 @@ export default function Home() {
   // Luego agrega estos estados al principio de tu componente, junto a tus otros estados
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+ //sesion
+ const { data: session } = useSession();
+ //user Session
+const [selectedOperatorFromSession, setSelectedOperatorFromSession] = useState<string | null>(null);
+const [sessionOperatorName, setSessionOperatorName] = useState<string | null>(null);
+
 
 
   const handleGoBack = () => {
@@ -114,7 +125,28 @@ const handleProductSelect = (product: ProductData) => {
   selectProduct(product);
 };
 
+//seleccionar usuario en sesion actual
+// Agregar este useEffect para obtener el operador relacionado con la sesión al cargar el componente
+useEffect(() => {
+  const findOperatorBySessionUser = async () => {
+    if (session?.user?.name && operators.length > 0) {
+      // Buscar el operador que coincida con el nombre de usuario de la sesión
+      const userOperator = operators.find(
+        (op) => op.nombreOperador.toLowerCase() === session.user.name?.toLowerCase()
+      );
 
+      if (userOperator) {
+        setSelectedOperatorFromSession(userOperator.rfiD_Operador);
+        setSessionOperatorName(userOperator.nombreOperador);
+        console.log("Operador de sesión encontrado:", userOperator.nombreOperador);
+      } else {
+        console.warn("No se encontró un operador para el usuario actual:", session.user.name);
+      }
+    }
+  };
+
+  findOperatorBySessionUser();
+}, [session?.user?.name, operators]);
 // Sincronizar `selectedProduct` con `products`
 useEffect(() => {
   if (selectedProduct) {
@@ -200,66 +232,71 @@ useEffect(() => {
   }
 
   const confirmOperatorSelection = async (productId: string) => {
-    if (operatorToConfirm && selectedProduct) {
+    // Obtenemos el operador desde la sesión si no hay uno seleccionado
+    const operatorToUse = operatorToConfirm || selectedOperatorFromSession;
+    
+    if (operatorToUse && selectedProduct) {
       try {
         // 1. Realizar POST para asociar el operador
         const postResult = await registerAntennaRecord(
           selectedProduct.product.epc,
-          operatorToConfirm
+          operatorToUse
         );
   
         if (!postResult.success) {
           throw new Error(postResult.message || "Error al registrar el producto.");
         }
   
-        // 2. Obtener los detalles del operador seleccionado
-        const operatorDetails = operators.find(
-          (op) => op.rfiD_Operador === operatorToConfirm
-        );
-  
-        if (!operatorDetails) {
-          throw new Error("No se encontró el operador en la lista local.");
-        }
+       // 2. Obtener los detalles del operador seleccionado
+      const operatorDetails = operators.find(
+        (op) => op.rfiD_Operador === operatorToUse
+      );
+
+      if (!operatorDetails) {
+        throw new Error("No se encontró el operador en la lista local.");
+      }
+
   
         // 3. Actualizar el estado global y el producto seleccionado
-        const updatedProduct = {
-          ...selectedProduct,
-          product: {
-            ...selectedProduct.product,
-            operator: operatorDetails.nombreOperador,
-            status: "success"
-          }
-        };
+      const updatedProduct = {
+        ...selectedProduct,
+        product: {
+          ...selectedProduct.product,
+          operator: operatorDetails.nombreOperador,
+          status: "success"
+        }
+      };
+
   
-        // Actualizar el estado global
-        const updatedProducts = products.map(p => 
-          p.product.id === productId ? updatedProduct : p
-        );
-  
-        // Actualizar el operador en el store global
-        updateOperator(productId, operatorDetails.nombreOperador);
-        
-        // Actualizar el producto seleccionado
-        selectProduct(updatedProduct);
-  
-        setAlertType("success");
-        setAlertMessage("Operador asignado correctamente.");
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error
-          ? error.message
-          : "Error al sincronizar datos.";
-        console.error("Error:", errorMessage);
-  
-        setAlertType("error");
-        setAlertMessage(errorMessage);
-      } finally {
-        setIsAlertOpen(true);
-        setTimeout(() => setIsAlertOpen(false), 3000);
-        setOperatorToConfirm(null);
-        setOperatorConfirmingProduct(null);
-      }
+      // Actualizar el estado global
+      const updatedProducts = products.map(p => 
+        p.product.id === productId ? updatedProduct : p
+      );
+
+      // Actualizar el operador en el store global
+      updateOperator(productId, operatorDetails.nombreOperador);
+      
+      // Actualizar el producto seleccionado
+      selectProduct(updatedProduct);
+
+      setAlertType("success");
+      setAlertMessage("Operador asignado correctamente.");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : "Error al sincronizar datos.";
+      console.error("Error:", errorMessage);
+
+      setAlertType("error");
+      setAlertMessage(errorMessage);
+    } finally {
+      setIsAlertOpen(true);
+      setTimeout(() => setIsAlertOpen(false), 3000);
+      setOperatorToConfirm(null);
+      setOperatorConfirmingProduct(null);
     }
-  };
+  }
+};
   
   //funcion reproceso
   const tarimaReproceso = async () => {
@@ -312,20 +349,36 @@ useEffect(() => {
       }
   
       const registro = data[0];
+      
+      // Capturamos el operadorRFID del registro si existe, o dejamos "Indefinido" como valor predeterminado
+      const operadorRFID = registro.operadorRFID || "Indefinido";
+      
+      // Determinar si el estado debe ser "success" o "pending" según el operador
+      const estadoProducto = operadorRFID !== "Indefinido" ? "success" : "pending";
+      
+      // Si hay un operadorRFID, obtenemos su nombre desde la lista de operadores
+      let nombreOperador = "Indefinido";
+      if (operadorRFID !== "Indefinido") {
+        // Buscamos el nombre del operador en la lista de operadores
+        const operadorEncontrado = operators.find(op => op.rfiD_Operador === operadorRFID);
+        if (operadorEncontrado) {
+          nombreOperador = operadorEncontrado.nombreOperador;
+        }
+      }
   
-      const nuevoProducto: ProductData = {
+      const nuevoProducto = {
         success: true,
         product: {
           id: registro.id.toString(),
           name: registro.nombreProducto || "Producto sin nombre",
           epc: registro.rfid || "", // 🔥 EPC único
-          status: "pending",
+          status: estadoProducto, // Usamos el estado basado en el operador
           imageUrl: "",
           netWeight: registro.pesoNeto?.toString() || "N/A",
           pieces: registro.piezas?.toString() || "N/A",
           unitOfMeasure: registro.uom || "N/A",
           printCard: registro.productPrintCard || "N/A",
-          operator: "Indefinido",
+          operator: nombreOperador, // Asignamos el nombre del operador
           tipoEtiqueta: "N/A",
           area: registro.area || "N/A",
           claveProducto: registro.claveProducto || "N/A",
@@ -403,6 +456,7 @@ useEffect(() => {
   }
 
   return (
+    <ProtectedRoute>
     
     <div className="flex h-screen bg-gray-100">
       <Dialog open={isLoadingModal}>
@@ -598,12 +652,27 @@ useEffect(() => {
       <div className="w-2/3 p-4 overflow-y-auto">
      
       <p className="text-3xl font-bold text-black-600 mb-4 text-center">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase()}</p>
-      <Button
-  onClick={handleGoBack}
-  className="bg-[#1E3A8A] hover:bg-[#1A2E6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
->
-  <ArrowLeft className="w-5 h-5" /> Regresar al Dashboard
-</Button>
+      <div className="flex items-center justify-between w-full max-w-6xl mb-4">
+  {/* Botón de regreso */}
+  <Button
+    onClick={handleGoBack}
+    className="bg-[#1E3A8A] hover:bg-[#1A2E6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
+  >
+    <ArrowLeft className="w-5 h-5" /> Regresar al Dashboard
+  </Button>
+
+  {/* Mensaje de bienvenida */}
+  <div className="text-center">
+    {session?.user?.name ? (
+      <p className="text-2xl text-black">
+        Bienvenido, <span className="text-yellow-400 font-semibold">{session.user.name}</span> 🎉
+      </p>
+    ) : (
+      <p className="text-gray-300">Cargando usuario...</p>
+    )}
+  </div>
+</div>
+
 
         {selectedProduct ? (
           <div className="space-y-6 bg-white p-6 rounded-lg shadow-lg">
@@ -733,65 +802,99 @@ useEffect(() => {
                   </div>
                 </div>
                 <div className="bg-[#133d3d] p-6 rounded-lg shadow-md">
-  <p className="text-lg font-bold text-[#e1a21b] mb-4">OPERADOR</p>
-  {selectedProduct?.product.operator !== "Indefinido" ? (
-    <div className="flex items-center justify-between bg-[#e1a21b] text-[#133d3d] px-4 py-3 rounded-lg">
-      <p className="text-2xl font-semibold">{selectedProduct.product.operator}</p>
-      <CheckCircle2 className="text-green-500" size={40} />
-    </div>
-  ) : (
-    <div>
-      <Select
-        onValueChange={(value) => {
-          setOperatorToConfirm(value);
-          setOperatorConfirmingProduct(selectedProduct.product.id);
-        }}
-      >
-        <SelectTrigger className="w-full border-2 border-[#e1a21b] rounded-lg text-[#133d3d] font-semibold px-4 py-2 bg-white">
-          <SelectValue placeholder="Seleccionar operador" />
-        </SelectTrigger>
-        <SelectContent className="bg-white rounded-lg shadow-md">
-          {operators.map((op) => (
-            <SelectItem
-              key={op.id}
-              value={op.rfiD_Operador}
-              className="hover:bg-[#e1a21b] hover:text-white"
+    <p className="text-lg font-bold text-[#e1a21b] mb-4">OPERADOR</p>
+    {selectedProduct?.product.operator !== "Indefinido" ? (
+      <div className="flex items-center justify-between bg-[#e1a21b] text-[#133d3d] px-4 py-3 rounded-lg">
+        <p className="text-2xl font-semibold">{selectedProduct.product.operator}</p>
+        <CheckCircle2 className="text-green-500" size={40} />
+      </div>
+    ) : sessionOperatorName ? (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between bg-amber-200 text-[#133d3d] px-4 py-3 rounded-lg mb-3">
+          <div>
+            <p className="text-sm font-medium">Operador de la sesión:</p>
+            <p className="text-xl font-semibold">{sessionOperatorName}</p>
+          </div>
+          <UserCheck className="text-green-600" size={32} />
+        </div>
+        <Button
+          onClick={() => confirmOperatorSelection(selectedProduct.product.id)}
+          className="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg"
+        >
+          Asignar este operador
+        </Button>
+        <div className="text-center text-white text-xs py-2">
+          <span>o seleccione otro operador:</span>
+        </div>
+        <Select
+          onValueChange={(value) => {
+            setOperatorToConfirm(value);
+            setOperatorConfirmingProduct(selectedProduct.product.id);
+          }}
+        >
+          <SelectTrigger className="w-full border-2 border-[#e1a21b] rounded-lg text-[#133d3d] font-semibold px-4 py-2 bg-white">
+            <SelectValue placeholder="Seleccionar otro operador" />
+          </SelectTrigger>
+          <SelectContent className="bg-white rounded-lg shadow-md">
+            {operators.map((op) => (
+              <SelectItem
+                key={op.id}
+                value={op.rfiD_Operador}
+                className="hover:bg-[#e1a21b] hover:text-white"
+              >
+                {op.nombreOperador}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {operatorToConfirm &&
+          operatorConfirmingProduct === selectedProduct.product.id && (
+            <Button
+              onClick={() => confirmOperatorSelection(selectedProduct.product.id)}
+              className="mt-2 w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
             >
-              {op.nombreOperador}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {operatorToConfirm &&
-        operatorConfirmingProduct === selectedProduct.product.id && (
-          <Button
-            onClick={() => confirmOperatorSelection(selectedProduct.product.id)}
-            className="mt-4 w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
-          >
-            Confirmar selección
-          </Button>
-        )}
-    </div>
-  )}
-</div>
-
-
-
-<div className={`p-4 rounded-lg shadow-md text-center ${selectedProduct.product.operator !== 'Indefinido' ? 'bg-green-100' : 'bg-red-100'}`}>
-  <div className="flex items-center justify-center space-x-2">
-    {selectedProduct.product.operator !== 'Indefinido' ? (
-      <CheckCircle2 className="text-green-500" size={40} />
+              Confirmar selección
+            </Button>
+          )}
+      </div>
     ) : (
-      <XCircle className="text-red-500" size={40} />
+      <div>
+        <div className="bg-amber-100 text-amber-800 p-3 rounded-lg mb-3">
+          <p className="text-sm">No se encontró un operador asociado a tu usuario.</p>
+        </div>
+        <Select
+          onValueChange={(value) => {
+            setOperatorToConfirm(value);
+            setOperatorConfirmingProduct(selectedProduct.product.id);
+          }}
+        >
+          <SelectTrigger className="w-full border-2 border-[#e1a21b] rounded-lg text-[#133d3d] font-semibold px-4 py-2 bg-white">
+            <SelectValue placeholder="Seleccionar operador" />
+          </SelectTrigger>
+          <SelectContent className="bg-white rounded-lg shadow-md">
+            {operators.map((op) => (
+              <SelectItem
+                key={op.id}
+                value={op.rfiD_Operador}
+                className="hover:bg-[#e1a21b] hover:text-white"
+              >
+                {op.nombreOperador}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {operatorToConfirm &&
+          operatorConfirmingProduct === selectedProduct.product.id && (
+            <Button
+              onClick={() => confirmOperatorSelection(selectedProduct.product.id)}
+              className="mt-4 w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
+            >
+              Confirmar selección
+            </Button>
+          )}
+      </div>
     )}
-    <p className="text-2xl font-bold" style={{ color: selectedProduct.product.operator !== 'Indefinido' ? '#28a745' : '#dc3545' }}>
-      {selectedProduct.product.operator !== 'Indefinido' ? 'Éxito' : 'Error'}
-    </p>
   </div>
-  <p className="text-lg font-medium mt-2 text-gray-800">
-    Estado: {selectedProduct.product.operator !== 'Indefinido' ? 'El operador está asignado correctamente.' : 'No se ha asignado un operador.'}
-  </p>
-</div>
 
               </div>
             </div>
@@ -806,5 +909,6 @@ useEffect(() => {
 
       
     </div>
+    </ProtectedRoute>
   )
 }
