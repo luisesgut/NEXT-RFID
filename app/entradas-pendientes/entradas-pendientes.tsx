@@ -748,6 +748,137 @@ useEffect(() => {
           </div>
         )}
       </div>
+<<<<<<< HEAD
     </ProtectedRoute>
+=======
+
+      {/* Filtros activos */}
+      {(selectedStatus.length > 0 || pendingOperatorOnly || filterOperators.length > 0 || filtrarPorHora) && (
+        <div className="w-full max-w-6xl mb-4 bg-blue-50 p-3 rounded-lg">
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-sm font-semibold text-gray-600">Filtros activos:</span>
+            
+            {selectedStatus.map(status => (
+              <div key={`filter-${status}`} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs flex items-center">
+                {STATUS_LABELS[status]}
+                <button 
+                  onClick={() => handleStatusChange(status)} 
+                  className="ml-1 text-blue-600 hover:text-blue-800"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            
+            {pendingOperatorOnly && (
+              <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs flex items-center">
+                Pendientes de operador
+                <button 
+                  onClick={() => setPendingOperatorOnly(false)} 
+                  className="ml-1 text-yellow-600 hover:text-yellow-800"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            
+            {filterOperators.map(op => (
+              <div key={`filter-op-${op}`} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs flex items-center">
+                Operador: {op.length > 15 ? op.substring(0, 15) + '...' : op}
+                <button 
+                  onClick={() => handleOperatorFilterChange(op)} 
+                  className="ml-1 text-green-600 hover:text-green-800"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            
+            {filtrarPorHora && (
+              <div className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs flex items-center">
+                Horario: {horaInicio} - {horaFin}
+                <button 
+                  onClick={() => setFiltrarPorHora(false)} 
+                  className="ml-1 text-purple-600 hover:text-purple-800"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mensaje de carga o error */}
+      {isLoading && (
+        <div className="w-full max-w-6xl bg-blue-100 text-blue-800 p-4 rounded-lg mb-6 text-center">
+          Cargando datos...
+        </div>
+      )}
+      
+      {error && (
+        <div className="w-full max-w-6xl bg-red-100 text-red-800 p-4 rounded-lg mb-6 text-center">
+          {error}
+        </div>
+      )}
+
+      {/* Tarjetas de productos con selección de operador */}
+      {filteredEntradas.length === 0 && !isLoading ? (
+        <div className="w-full max-w-6xl bg-yellow-100 text-yellow-800 p-4 rounded-lg mb-6 text-center">
+          No se encontraron resultados con los filtros aplicados.
+        </div>
+      ) : (
+        <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filteredEntradas.map((entrada) => (
+            <Card key={entrada.id} className={`border shadow-md ${entrada.operadorEntrada ? "border-green-500" : "border-red-500"}`}>
+              <CardContent className="p-4 text-gray-800">
+                <div className="flex justify-between items-start mb-2">
+                  <p className="text-lg font-bold">{entrada.prodEtiquetaRFID.nombreProducto}</p>
+                  {getStatusBadge(entrada.prodEtiquetaRFID.status)}
+                </div>
+                <p><strong>Código:</strong> {entrada.prodEtiquetaRFID.claveProducto}</p>
+                <p><strong>Tarima:</strong> {entrada.numTarima}</p>
+                <p><strong>Fecha de Entrada:</strong> {new Date(entrada.fechaEntrada).toLocaleDateString()}</p>
+                <p><strong>Hora de Entrada:</strong> {new Date(entrada.fechaEntrada).toLocaleTimeString()}</p>
+                <p><strong>Trazabilidad:</strong> {entrada.trazabilidad}</p>
+                <p><strong>Peso Neto</strong> {entrada.prodEtiquetaRFID.pesoNeto.toLocaleString()} KG </p>
+
+                {/* Si el operadorEntrada es null, mostrar selector */}
+                {entrada.operadorEntrada ? (
+                  <div className="flex items-center justify-between bg-green-100 px-4 py-3 rounded-lg mt-4">
+                    <p className="text-lg font-semibold text-green-700">{entrada.operadorEntrada}</p>
+                    <CheckCircle2 className="text-green-500" size={24} />
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <Select onValueChange={(value) => setSelectedOperator({ ...selectedOperator, [entrada.id]: value })}>
+                      <SelectTrigger className="w-full border-2 border-yellow-500 rounded-lg text-gray-700 font-semibold px-4 py-2 bg-white">
+                        <SelectValue placeholder="Seleccionar operador" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {operators.map((op) => (
+                          <SelectItem key={op.id} value={op.rfiD_Operador}>
+                            {op.nombreOperador}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Button 
+                      onClick={() => confirmOperatorSelection(entrada.id)} 
+                      className="mt-4 w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
+                      disabled={!selectedOperator[entrada.id] || confirmingOperator === entrada.id}
+                    >
+                      {confirmingOperator === entrada.id ? 'Procesando...' : 'Confirmar selección'}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+>>>>>>> c6802bde647c5388d52c2497c13de11bebafcb6a
   );
 }
