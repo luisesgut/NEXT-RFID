@@ -3,12 +3,18 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, Calendar, ChevronLeft, ChevronRight, Search, CheckCircle2, XCircle, Filter, Clock, ArrowLeft } from "lucide-react";
+import { RefreshCcw, Calendar, ChevronLeft, ChevronRight, Search, CheckCircle2, XCircle, Filter, Clock, ArrowLeft,Users,UserCheck } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox"; 
 import { Badge } from "@/components/ui/badge";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+//sesion
+import ProtectedRoute from "@/components/ui/ProtectedRoute"; // Importa el HOC
+import { useSession, signOut } from "next-auth/react";
+
+
 
 interface Entrada {
   id: number;
@@ -64,6 +70,31 @@ export default function EntradasPendientes() {
   const [horaInicio, setHoraInicio] = useState("00:00");
   const [horaFin, setHoraFin] = useState("23:59");
   const [filtrarPorHora, setFiltrarPorHora] = useState(false);
+
+  //sesion
+  const { data: session } = useSession();
+  //pestañas
+  const [activeTab, setActiveTab] = useState("misEntradas");
+  //user session
+  // Estado para almacenar el nombre del operador de la sesión actual
+const [sessionOperatorName, setSessionOperatorName] = useState<string | null>(null);
+
+//funcion para el operador de la sesion
+// Efecto para encontrar el operador asociado al usuario de la sesión
+useEffect(() => {
+  if (session?.user?.name && operators.length > 0) {
+    const userOperator = operators.find(
+      (op) => op.nombreOperador.toLowerCase() === session.user.name?.toLowerCase()
+    );
+
+    if (userOperator) {
+      setSessionOperatorName(userOperator.nombreOperador);
+      console.log("Operador de sesión encontrado:", userOperator.nombreOperador);
+    } else {
+      console.warn("No se encontró un operador para el usuario actual:", session.user.name);
+    }
+  }
+}, [session?.user?.name, operators]);
 
   const handleGoBack = () => {
     router.push("/dashboard"); // 🔀 Primero redirigir
@@ -174,6 +205,13 @@ export default function EntradasPendientes() {
 
   const applyFilters = (dataToFilter = entradas) => {
     let filtered = [...dataToFilter];
+  
+    // Aplicar filtro del usuario actual en la pestaña "Mis Entradas"
+    if (activeTab === "misEntradas" && sessionOperatorName) {
+      filtered = filtered.filter(entrada => 
+        entrada.operadorEntrada === sessionOperatorName
+      );
+    }
 
     // Filtrar por término de búsqueda
     if (searchTerm) {
@@ -278,359 +316,438 @@ export default function EntradasPendientes() {
   const uniqueOperatorsList = useMemo(getUniqueOperators, [entradas]);
 
   return (
-    <div className="min-h-screen bg-[#153E3E] flex flex-col items-center py-12 px-4">
-      {/* Botón de regreso y encabezado */}
-      <div className="w-full max-w-6xl flex justify-between mb-4">
-        <Button
-          onClick={handleGoBack}
-          className="bg-[#1E3A8A] hover:bg-[#1A2E6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
-        >
-          <ArrowLeft className="w-5 h-5" /> Regresar al Dashboard
-        </Button>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-[#153E3E] flex flex-col items-center py-12 px-4">
+        {isLoading && activeTab === "misEntradas" && !sessionOperatorName && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md text-center">
+              <p className="text-lg font-semibold mb-4">Buscando tus entradas...</p>
+              <div className="flex justify-center">
+                <RefreshCcw className="w-10 h-10 text-[#153E3E] animate-spin" />
+              </div>
+            </div>
+          </div>
+        )}
         
-        {/* Nuevo botón de actualizar */}
-        <Button
-          onClick={handleRefresh}
-          className="bg-[#1E5F8A] hover:bg-[#1A4F6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
-        >
-          <RefreshCcw className="w-5 h-5" /> Actualizar
-        </Button>
-      </div>
-
-      <div className="text-center mt-2 mb-8 flex flex-col items-center justify-center">
-        <img src="/img/logo_b.png" alt="Logo Bioflex" width={250} height={100} className="object-contain mb-4" />
-        <h1 className="text-5xl font-bold text-white tracking-wide uppercase">Entradas Almacén</h1>
-      </div>
-
-      {/* 🔍 Barra de búsqueda global */}
-      <div className="w-full max-w-2xl bg-white rounded-full px-4 py-2 shadow-md mb-6 flex items-center">
-        <Search className="text-gray-500 mr-2" />
-        <input
-          type="text"
-          placeholder="Buscar por producto, código o trazabilidad..."
-          className="w-full border-none focus:outline-none px-2 text-gray-700"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => setShowFilters(!showFilters)} 
-          className="ml-2 text-gray-500 hover:text-gray-700"
-        >
-          <Filter size={20} />
-          {(selectedStatus.length > 0 || pendingOperatorOnly || filterOperators.length > 0 || filtrarPorHora) && (
-            <span className="ml-1 bg-blue-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
-              {selectedStatus.length + (pendingOperatorOnly ? 1 : 0) + (filterOperators.length > 0 ? 1 : 0) + (filtrarPorHora ? 1 : 0)}
-            </span>
+        {/* Botón de regreso y encabezado */}
+        <div className="w-full max-w-6xl flex justify-between mb-4">
+          <Button
+            onClick={handleGoBack}
+            className="bg-[#1E3A8A] hover:bg-[#1A2E6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
+          >
+            <ArrowLeft className="w-5 h-5" /> Regresar al Dashboard
+          </Button>
+          
+          {/* Nuevo botón de actualizar */}
+          <Button
+            onClick={handleRefresh}
+            className="bg-[#1E5F8A] hover:bg-[#1A4F6B] text-white font-bold px-6 py-2 rounded-lg flex items-center gap-2"
+          >
+            <RefreshCcw className="w-5 h-5" /> Actualizar
+          </Button>
+        </div>
+  
+        <div className="text-center mt-2 mb-8 flex flex-col items-center justify-center">
+          <img src="/img/logo_b.png" alt="Logo Bioflex" width={250} height={100} className="object-contain mb-4" />
+          <h1 className="text-5xl font-bold text-white tracking-wide uppercase">Entradas Almacén</h1>
+        </div>
+        
+        <div className="text-center mt-2 mb-8 flex flex-col items-center justify-center">
+          {session?.user?.name ? (
+            <p className="text-2xl text-white">
+              Bienvenido, <span className="text-yellow-400 font-semibold">{session.user.name}</span> 🎉
+            </p>
+          ) : (
+            <p className="text-gray-300">Cargando usuario...</p> // Mensaje de carga si no hay usuario
           )}
-        </Button>
-      </div>
-
-      {/* Sección de Filtros */}
-      {showFilters && (
-        <div className="w-full max-w-2xl bg-white rounded-lg p-4 shadow-md mb-6">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-lg text-gray-800">Filtros</h3>
-            {(selectedStatus.length > 0 || pendingOperatorOnly || filterOperators.length > 0 || filtrarPorHora) && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  setSelectedStatus([]);
-                  setPendingOperatorOnly(false);
-                  setFilterOperators([]);
-                  setFiltrarPorHora(false);
-                  setHoraInicio("00:00");
-                  setHoraFin("23:59");
-                }}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                Limpiar filtros
-              </Button>
-            )}
-          </div>
-          
-          {/* Filtro por Fecha */}
-          <div className="mb-4">
-            <p className="font-semibold text-sm text-gray-700 mb-2">Rango de Fechas:</p>
-            <div className="flex space-x-2 items-center">
-              <div className="flex items-center">
-                <span className="text-sm text-gray-600 mr-2">Desde:</span>
-                <input
-                  type="date"
-                  value={fechaInicio}
-                  onChange={(e) => setFechaInicio(e.target.value)}
-                  className="border rounded px-2 py-1 text-sm"
-                />
-              </div>
-              <div className="flex items-center">
-                <span className="text-sm text-gray-600 mr-2">Hasta:</span>
-                <input
-                  type="date"
-                  value={fechaFin}
-                  onChange={(e) => setFechaFin(e.target.value)}
-                  className="border rounded px-2 py-1 text-sm"
-                />
-              </div>
-              <Button 
-                size="sm" 
-                onClick={handleApplyDateFilter}
-                className="bg-green-500 hover:bg-green-600 ml-2"
-              >
-                Aplicar
-              </Button>
-            </div>
-          </div>
-          
-          {/* Nuevo: Filtro por Hora */}
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <Checkbox 
-                id="filtrar-por-hora" 
-                checked={filtrarPorHora}
-                onCheckedChange={(checked) => setFiltrarPorHora(!!checked)}
-              />
-              <label htmlFor="filtrar-por-hora" className="ml-2 font-semibold text-sm text-gray-700">
-                Filtrar por rango de horas:
-              </label>
-            </div>
-            <div className="flex space-x-4 items-center ml-6">
-              <div className="flex items-center">
-                <Clock size={16} className="text-gray-500 mr-2" />
-                <span className="text-sm text-gray-600 mr-2">Desde:</span>
-                <input
-                  type="time"
-                  value={horaInicio}
-                  onChange={(e) => setHoraInicio(e.target.value)}
-                  className="border rounded px-2 py-1 text-sm"
-                  disabled={!filtrarPorHora}
-                />
-              </div>
-              <div className="flex items-center">
-                <Clock size={16} className="text-gray-500 mr-2" />
-                <span className="text-sm text-gray-600 mr-2">Hasta:</span>
-                <input
-                  type="time"
-                  value={horaFin}
-                  onChange={(e) => setHoraFin(e.target.value)}
-                  className="border rounded px-2 py-1 text-sm"
-                  disabled={!filtrarPorHora}
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Filtro por Status */}
-          <div className="mb-4">
-            <p className="font-semibold text-sm text-gray-700 mb-2">Status:</p>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(STATUS_LABELS).map(([status, label]) => (
-                <div key={status} className="flex items-center">
-                  <Checkbox 
-                    id={`status-${status}`} 
-                    checked={selectedStatus.includes(Number(status))}
-                    onCheckedChange={() => handleStatusChange(Number(status))}
-                  />
-                  <label htmlFor={`status-${status}`} className="ml-2 text-sm font-medium">
-                    {label}
-                  </label>
+        </div>
+  
+        {/* Pestañas: Mis Entradas / Todas las Entradas */}
+        <div className="w-full max-w-6xl">
+          <Tabs 
+            defaultValue="misEntradas" 
+            value={activeTab} 
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <TabsList className="grid grid-cols-2 mb-6 bg-[#1a4b4b] p-1 rounded-lg">
+            <TabsTrigger 
+  value="misEntradas"
+  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#153E3E] text-white py-3"
+  onClick={() => {
+    setActiveTab("misEntradas");
+    // Force immediate re-application of filters
+    setTimeout(() => applyFilters(), 0);
+  }}
+>
+  <UserCheck className="w-5 h-5" />
+  <span className="font-semibold">Mis Entradas</span>
+</TabsTrigger>
+<TabsTrigger 
+  value="todasEntradas"
+  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#153E3E] text-white py-3"
+  onClick={() => {
+    setActiveTab("todasEntradas");
+    // Force immediate re-application of filters
+    setTimeout(() => applyFilters(), 0);
+  }}
+>
+  <Users className="w-5 h-5" />
+  <span className="font-semibold">Todas las Entradas</span>
+</TabsTrigger>
+            </TabsList>
+  
+            <TabsContent value="misEntradas" className="mt-0">
+              {/* Mensaje cuando no hay operador asociado */}
+              {!sessionOperatorName && (
+                <div className="w-full bg-yellow-100 text-yellow-800 p-4 rounded-lg mb-6 text-center">
+                  No se encontró un operador asociado a tu usuario actual. Por favor, contacta al administrador.
                 </div>
-              ))}
+              )}
+            </TabsContent>
+            
+            <TabsContent value="todasEntradas" className="mt-0">
+              {/* No se necesita contenido específico aquí */}
+            </TabsContent>
+          </Tabs>
+        </div>
+  
+        {/* 🔍 Barra de búsqueda global */}
+        <div className="w-full max-w-2xl bg-white rounded-full px-4 py-2 shadow-md mb-6 flex items-center">
+          <Search className="text-gray-500 mr-2" />
+          <input
+            type="text"
+            placeholder="Buscar por producto, código o trazabilidad..."
+            className="w-full border-none focus:outline-none px-2 text-gray-700"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setShowFilters(!showFilters)} 
+            className="ml-2 text-gray-500 hover:text-gray-700"
+          >
+            <Filter size={20} />
+            {(selectedStatus.length > 0 || pendingOperatorOnly || filterOperators.length > 0 || filtrarPorHora) && (
+              <span className="ml-1 bg-blue-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
+                {selectedStatus.length + (pendingOperatorOnly ? 1 : 0) + (filterOperators.length > 0 ? 1 : 0) + (filtrarPorHora ? 1 : 0)}
+              </span>
+            )}
+          </Button>
+        </div>
+  
+        {/* Sección de Filtros */}
+        {showFilters && (
+          <div className="w-full max-w-2xl bg-white rounded-lg p-4 shadow-md mb-6">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-bold text-lg text-gray-800">Filtros</h3>
+              {(selectedStatus.length > 0 || pendingOperatorOnly || filterOperators.length > 0 || filtrarPorHora) && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setSelectedStatus([]);
+                    setPendingOperatorOnly(false);
+                    setFilterOperators([]);
+                    setFiltrarPorHora(false);
+                    setHoraInicio("00:00");
+                    setHoraFin("23:59");
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Limpiar filtros
+                </Button>
+              )}
             </div>
-          </div>
-          
-          {/* Filtro por Operador */}
-          <div className="mb-4">
-            <p className="font-semibold text-sm text-gray-700 mb-2">Por operador asignado:</p>
-            <div className="max-h-40 overflow-y-auto border rounded-md p-2">
-              {uniqueOperatorsList.length > 0 ? (
-                uniqueOperatorsList.map((operatorName) => (
-                  <div key={operatorName} className="flex items-center mb-1">
+            
+            {/* Filtro por Fecha */}
+            <div className="mb-4">
+              <p className="font-semibold text-sm text-gray-700 mb-2">Rango de Fechas:</p>
+              <div className="flex space-x-2 items-center">
+                <div className="flex items-center">
+                  <span className="text-sm text-gray-600 mr-2">Desde:</span>
+                  <input
+                    type="date"
+                    value={fechaInicio}
+                    onChange={(e) => setFechaInicio(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm"
+                  />
+                </div>
+                <div className="flex items-center">
+                  <span className="text-sm text-gray-600 mr-2">Hasta:</span>
+                  <input
+                    type="date"
+                    value={fechaFin}
+                    onChange={(e) => setFechaFin(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm"
+                  />
+                </div>
+                <Button 
+                  size="sm" 
+                  onClick={handleApplyDateFilter}
+                  className="bg-green-500 hover:bg-green-600 ml-2"
+                >
+                  Aplicar
+                </Button>
+              </div>
+            </div>
+            
+            {/* Nuevo: Filtro por Hora */}
+            <div className="mb-4">
+              <div className="flex items-center mb-2">
+                <Checkbox 
+                  id="filtrar-por-hora" 
+                  checked={filtrarPorHora}
+                  onCheckedChange={(checked) => setFiltrarPorHora(!!checked)}
+                />
+                <label htmlFor="filtrar-por-hora" className="ml-2 font-semibold text-sm text-gray-700">
+                  Filtrar por rango de horas:
+                </label>
+              </div>
+              <div className="flex space-x-4 items-center ml-6">
+                <div className="flex items-center">
+                  <Clock size={16} className="text-gray-500 mr-2" />
+                  <span className="text-sm text-gray-600 mr-2">Desde:</span>
+                  <input
+                    type="time"
+                    value={horaInicio}
+                    onChange={(e) => setHoraInicio(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm"
+                    disabled={!filtrarPorHora}
+                  />
+                </div>
+                <div className="flex items-center">
+                  <Clock size={16} className="text-gray-500 mr-2" />
+                  <span className="text-sm text-gray-600 mr-2">Hasta:</span>
+                  <input
+                    type="time"
+                    value={horaFin}
+                    onChange={(e) => setHoraFin(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm"
+                    disabled={!filtrarPorHora}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Filtro por Status */}
+            <div className="mb-4">
+              <p className="font-semibold text-sm text-gray-700 mb-2">Status:</p>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(STATUS_LABELS).map(([status, label]) => (
+                  <div key={status} className="flex items-center">
                     <Checkbox 
-                      id={`operator-${operatorName.replace(/\s+/g, '')}`} 
-                      checked={filterOperators.includes(operatorName)}
-                      onCheckedChange={() => handleOperatorFilterChange(operatorName)}
+                      id={`status-${status}`} 
+                      checked={selectedStatus.includes(Number(status))}
+                      onCheckedChange={() => handleStatusChange(Number(status))}
                     />
-                    <label htmlFor={`operator-${operatorName.replace(/\s+/g, '')}`} className="ml-2 text-sm font-medium truncate">
-                      {operatorName}
+                    <label htmlFor={`status-${status}`} className="ml-2 text-sm font-medium">
+                      {label}
                     </label>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500 italic">No hay operadores asignados</p>
+                ))}
+              </div>
+            </div>
+            
+            {/* Filtro por Operador - Solo mostrar en la pestaña "Todas las Entradas" */}
+            {activeTab === "todasEntradas" && (
+              <div className="mb-4">
+                <p className="font-semibold text-sm text-gray-700 mb-2">Por operador asignado:</p>
+                <div className="max-h-40 overflow-y-auto border rounded-md p-2">
+                  {uniqueOperatorsList.length > 0 ? (
+                    uniqueOperatorsList.map((operatorName) => (
+                      <div key={operatorName} className="flex items-center mb-1">
+                        <Checkbox 
+                          id={`operator-${operatorName.replace(/\s+/g, '')}`} 
+                          checked={filterOperators.includes(operatorName)}
+                          onCheckedChange={() => handleOperatorFilterChange(operatorName)}
+                        />
+                        <label htmlFor={`operator-${operatorName.replace(/\s+/g, '')}`} className="ml-2 text-sm font-medium truncate">
+                          {operatorName}
+                        </label>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No hay operadores asignados</p>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Filtro por Operador Pendiente */}
+            <div>
+              <div className="flex items-center">
+                <Checkbox 
+                  id="pending-operator" 
+                  checked={pendingOperatorOnly}
+                  onCheckedChange={(checked) => {
+                    setPendingOperatorOnly(!!checked);
+                    if (checked) {
+                      // Si se activa "pendientes", desactivar cualquier filtro por operador específico
+                      setFilterOperators([]);
+                    }
+                  }}
+                />
+                <label htmlFor="pending-operator" className="ml-2 text-sm font-medium">
+                  Solo mostrar pendientes de operador
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+  
+        {/* Stats */}
+        <div className="w-full max-w-6xl mb-6 flex flex-wrap gap-4 justify-center">
+          <div className="bg-white rounded-lg p-3 shadow-md flex-1 min-w-[200px] text-center">
+            <p className="text-sm text-gray-500">Total Tarimas</p>
+            <p className="text-2xl font-bold text-gray-800">{filteredEntradas.length}</p>
+          </div>
+          <div className="bg-white rounded-lg p-3 shadow-md flex-1 min-w-[200px] text-center">
+            <p className="text-sm text-gray-500">Pendientes de Operador</p>
+            <p className="text-2xl font-bold text-red-600">
+              {filteredEntradas.filter(e => e.operadorEntrada === null).length}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg p-3 shadow-md flex-1 min-w-[200px] text-center">
+            <p className="text-sm text-gray-500">Asignadas</p>
+            <p className="text-2xl font-bold text-green-600">
+              {filteredEntradas.filter(e => e.operadorEntrada !== null).length}
+            </p>
+          </div>
+        </div>
+  
+        {/* Filtros activos */}
+        {(selectedStatus.length > 0 || pendingOperatorOnly || filterOperators.length > 0 || filtrarPorHora) && (
+          <div className="w-full max-w-6xl mb-4 bg-blue-50 p-3 rounded-lg">
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-sm font-semibold text-gray-600">Filtros activos:</span>
+              
+              {selectedStatus.map(status => (
+                <div key={`filter-${status}`} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs flex items-center">
+                  {STATUS_LABELS[status]}
+                  <button 
+                    onClick={() => handleStatusChange(status)} 
+                    className="ml-1 text-blue-600 hover:text-blue-800"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              
+              {pendingOperatorOnly && (
+                <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs flex items-center">
+                  Pendientes de operador
+                  <button 
+                    onClick={() => setPendingOperatorOnly(false)} 
+                    className="ml-1 text-yellow-600 hover:text-yellow-800"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              
+              {filterOperators.map(op => (
+                <div key={`filter-op-${op}`} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs flex items-center">
+                  Operador: {op.length > 15 ? op.substring(0, 15) + '...' : op}
+                  <button 
+                    onClick={() => handleOperatorFilterChange(op)} 
+                    className="ml-1 text-green-600 hover:text-green-800"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              
+              {filtrarPorHora && (
+                <div className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs flex items-center">
+                  Horario: {horaInicio} - {horaFin}
+                  <button 
+                    onClick={() => setFiltrarPorHora(false)} 
+                    className="ml-1 text-purple-600 hover:text-purple-800"
+                  >
+                    ×
+                  </button>
+                </div>
               )}
             </div>
           </div>
-          
-          {/* Filtro por Operador Pendiente */}
-          <div>
-            <div className="flex items-center">
-              <Checkbox 
-                id="pending-operator" 
-                checked={pendingOperatorOnly}
-                onCheckedChange={(checked) => {
-                  setPendingOperatorOnly(!!checked);
-                  if (checked) {
-                    // Si se activa "pendientes", desactivar cualquier filtro por operador específico
-                    setFilterOperators([]);
-                  }
-                }}
-              />
-              <label htmlFor="pending-operator" className="ml-2 text-sm font-medium">
-                Solo mostrar pendientes de operador
-              </label>
-            </div>
+        )}
+  
+        {/* Mensaje de carga o error */}
+        {isLoading && (
+          <div className="w-full max-w-6xl bg-blue-100 text-blue-800 p-4 rounded-lg mb-6 text-center">
+            Cargando datos...
           </div>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="w-full max-w-6xl mb-6 flex flex-wrap gap-4 justify-center">
-        <div className="bg-white rounded-lg p-3 shadow-md flex-1 min-w-[200px] text-center">
-          <p className="text-sm text-gray-500">Total Tarimas</p>
-          <p className="text-2xl font-bold text-gray-800">{filteredEntradas.length}</p>
-        </div>
-        <div className="bg-white rounded-lg p-3 shadow-md flex-1 min-w-[200px] text-center">
-          <p className="text-sm text-gray-500">Pendientes de Operador</p>
-          <p className="text-2xl font-bold text-red-600">
-            {filteredEntradas.filter(e => e.operadorEntrada === null).length}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg p-3 shadow-md flex-1 min-w-[200px] text-center">
-          <p className="text-sm text-gray-500">Asignadas</p>
-          <p className="text-2xl font-bold text-green-600">
-            {filteredEntradas.filter(e => e.operadorEntrada !== null).length}
-          </p>
-        </div>
+        )}
+        
+        {error && (
+          <div className="w-full max-w-6xl bg-red-100 text-red-800 p-4 rounded-lg mb-6 text-center">
+            {error}
+          </div>
+        )}
+  
+        {/* Tarjetas de productos con selección de operador */}
+        {filteredEntradas.length === 0 && !isLoading ? (
+          <div className="w-full max-w-6xl bg-yellow-100 text-yellow-800 p-4 rounded-lg mb-6 text-center">
+            {activeTab === "misEntradas" 
+              ? "No tienes entradas asignadas con los filtros actuales."
+              : "No se encontraron resultados con los filtros aplicados."}
+          </div>
+        ) : (
+          <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredEntradas.map((entrada) => (
+              <Card key={entrada.id} className={`border shadow-md ${entrada.operadorEntrada ? "border-green-500" : "border-red-500"}`}>
+                <CardContent className="p-4 text-gray-800">
+                  <div className="flex justify-between items-start mb-2">
+                    <p className="text-lg font-bold">{entrada.prodEtiquetaRFID.nombreProducto}</p>
+                    {getStatusBadge(entrada.prodEtiquetaRFID.status)}
+                  </div>
+                  <p><strong>Código:</strong> {entrada.prodEtiquetaRFID.claveProducto}</p>
+                  <p><strong>Tarima:</strong> {entrada.numTarima}</p>
+                  <p><strong>Fecha de Entrada:</strong> {new Date(entrada.fechaEntrada).toLocaleDateString()}</p>
+                  <p><strong>Hora de Entrada:</strong> {new Date(entrada.fechaEntrada).toLocaleTimeString()}</p>
+                  <p><strong>Trazabilidad:</strong> {entrada.trazabilidad}</p>
+                  <p><strong>Piezas:</strong> {entrada.prodEtiquetaRFID.piezas.toLocaleString()}</p>
+  
+                  {/* Si el operadorEntrada es null, mostrar selector solo en la pestaña "Todas las Entradas" */}
+                  {entrada.operadorEntrada ? (
+                    <div className="flex items-center justify-between bg-green-100 px-4 py-3 rounded-lg mt-4">
+                      <p className="text-lg font-semibold text-green-700">{entrada.operadorEntrada}</p>
+                      <CheckCircle2 className="text-green-500" size={24} />
+                    </div>
+                  ) : (
+                    activeTab === "todasEntradas" && (
+                      <div className="mt-4">
+                        <Select onValueChange={(value) => setSelectedOperator({ ...selectedOperator, [entrada.id]: value })}>
+                          <SelectTrigger className="w-full border-2 border-yellow-500 rounded-lg text-gray-700 font-semibold px-4 py-2 bg-white">
+                            <SelectValue placeholder="Seleccionar operador" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {operators.map((op) => (
+                              <SelectItem key={op.id} value={op.rfiD_Operador}>
+                                {op.nombreOperador}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+  
+                        <Button 
+                          onClick={() => confirmOperatorSelection(entrada.id)} 
+                          className="mt-4 w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
+                          disabled={!selectedOperator[entrada.id] || confirmingOperator === entrada.id}
+                        >
+                          {confirmingOperator === entrada.id ? 'Procesando...' : 'Confirmar selección'}
+                        </Button>
+                      </div>
+                    )
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* Filtros activos */}
-      {(selectedStatus.length > 0 || pendingOperatorOnly || filterOperators.length > 0 || filtrarPorHora) && (
-        <div className="w-full max-w-6xl mb-4 bg-blue-50 p-3 rounded-lg">
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-sm font-semibold text-gray-600">Filtros activos:</span>
-            
-            {selectedStatus.map(status => (
-              <div key={`filter-${status}`} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs flex items-center">
-                {STATUS_LABELS[status]}
-                <button 
-                  onClick={() => handleStatusChange(status)} 
-                  className="ml-1 text-blue-600 hover:text-blue-800"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            
-            {pendingOperatorOnly && (
-              <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs flex items-center">
-                Pendientes de operador
-                <button 
-                  onClick={() => setPendingOperatorOnly(false)} 
-                  className="ml-1 text-yellow-600 hover:text-yellow-800"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-            
-            {filterOperators.map(op => (
-              <div key={`filter-op-${op}`} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs flex items-center">
-                Operador: {op.length > 15 ? op.substring(0, 15) + '...' : op}
-                <button 
-                  onClick={() => handleOperatorFilterChange(op)} 
-                  className="ml-1 text-green-600 hover:text-green-800"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            
-            {filtrarPorHora && (
-              <div className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs flex items-center">
-                Horario: {horaInicio} - {horaFin}
-                <button 
-                  onClick={() => setFiltrarPorHora(false)} 
-                  className="ml-1 text-purple-600 hover:text-purple-800"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Mensaje de carga o error */}
-      {isLoading && (
-        <div className="w-full max-w-6xl bg-blue-100 text-blue-800 p-4 rounded-lg mb-6 text-center">
-          Cargando datos...
-        </div>
-      )}
-      
-      {error && (
-        <div className="w-full max-w-6xl bg-red-100 text-red-800 p-4 rounded-lg mb-6 text-center">
-          {error}
-        </div>
-      )}
-
-      {/* Tarjetas de productos con selección de operador */}
-      {filteredEntradas.length === 0 && !isLoading ? (
-        <div className="w-full max-w-6xl bg-yellow-100 text-yellow-800 p-4 rounded-lg mb-6 text-center">
-          No se encontraron resultados con los filtros aplicados.
-        </div>
-      ) : (
-        <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredEntradas.map((entrada) => (
-            <Card key={entrada.id} className={`border shadow-md ${entrada.operadorEntrada ? "border-green-500" : "border-red-500"}`}>
-              <CardContent className="p-4 text-gray-800">
-                <div className="flex justify-between items-start mb-2">
-                  <p className="text-lg font-bold">{entrada.prodEtiquetaRFID.nombreProducto}</p>
-                  {getStatusBadge(entrada.prodEtiquetaRFID.status)}
-                </div>
-                <p><strong>Código:</strong> {entrada.prodEtiquetaRFID.claveProducto}</p>
-                <p><strong>Tarima:</strong> {entrada.numTarima}</p>
-                <p><strong>Fecha de Entrada:</strong> {new Date(entrada.fechaEntrada).toLocaleDateString()}</p>
-                <p><strong>Hora de Entrada:</strong> {new Date(entrada.fechaEntrada).toLocaleTimeString()}</p>
-                <p><strong>Trazabilidad:</strong> {entrada.trazabilidad}</p>
-                <p><strong>Piezas:</strong> {entrada.prodEtiquetaRFID.piezas.toLocaleString()}</p>
-
-                {/* Si el operadorEntrada es null, mostrar selector */}
-                {entrada.operadorEntrada ? (
-                  <div className="flex items-center justify-between bg-green-100 px-4 py-3 rounded-lg mt-4">
-                    <p className="text-lg font-semibold text-green-700">{entrada.operadorEntrada}</p>
-                    <CheckCircle2 className="text-green-500" size={24} />
-                  </div>
-                ) : (
-                  <div className="mt-4">
-                    <Select onValueChange={(value) => setSelectedOperator({ ...selectedOperator, [entrada.id]: value })}>
-                      <SelectTrigger className="w-full border-2 border-yellow-500 rounded-lg text-gray-700 font-semibold px-4 py-2 bg-white">
-                        <SelectValue placeholder="Seleccionar operador" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {operators.map((op) => (
-                          <SelectItem key={op.id} value={op.rfiD_Operador}>
-                            {op.nombreOperador}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Button 
-                      onClick={() => confirmOperatorSelection(entrada.id)} 
-                      className="mt-4 w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
-                      disabled={!selectedOperator[entrada.id] || confirmingOperator === entrada.id}
-                    >
-                      {confirmingOperator === entrada.id ? 'Procesando...' : 'Confirmar selección'}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
+    </ProtectedRoute>
   );
 }
