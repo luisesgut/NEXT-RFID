@@ -3,12 +3,14 @@
 import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { CheckCircle2, XCircle, Camera, UserCheck, QrCode, Loader2, ArrowRight, ArrowLeft, ClipboardList } from "lucide-react";
 import axios from "axios";
 import { Html5Qrcode } from "html5-qrcode";
 import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
+//sesion
+import { useSession } from "next-auth/react";
+
 
 interface Operador {
   id: number;
@@ -28,6 +30,9 @@ export default function AsociarTarima() {
   const [loadingOperators, setLoadingOperators] = useState(true);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerId = "reader";
+  //sesion
+  const { data: session } = useSession();
+
 
   const handleGoBack = () => {
     router.push("/dashboard"); // 🔀 Primero redirigir
@@ -47,7 +52,29 @@ export default function AsociarTarima() {
       setLoadingOperators(true);
       try {
         const response = await axios.get("http://172.16.10.31/api/OperadoresRFID");
-        setOperators(response.data);
+        const operators = response.data;
+        setOperators(operators);
+        
+        // Buscar el operador por nombre que coincida con el usuario de la sesión
+        if (session?.user?.name) {
+          const userOperator = operators.find((op: Operador) => 
+            op.nombreOperador.toLowerCase() === session.user.name?.toLowerCase()
+          );
+          
+          if (userOperator) {
+            // Si encuentra al operador, seleccionarlo automáticamente
+            setSelectedOperator(userOperator.rfiD_Operador);
+            setSelectedOperatorName(userOperator.nombreOperador);
+          } else {
+            // Si no encuentra coincidencia exacta, mostrar alerta
+            Swal.fire({
+              icon: "warning",
+              title: "Operador no encontrado",
+              text: "No se encontró un operador que coincida con tu usuario. Contacta al administrador.",
+              confirmButtonColor: "#e1a21b",
+            });
+          }
+        }
       } catch (error) {
         console.error("Error al obtener operadores:", error);
         Swal.fire({
@@ -62,15 +89,15 @@ export default function AsociarTarima() {
     };
 
     fetchOperators();
-  }, []);
+  }, [session]);
 
   // POST al endpoint cuando se detecta el QR
   const associatePallet = async (qrText: string) => {
     if (!selectedOperator) {
       Swal.fire({
         icon: "error",
-        title: "Operador no seleccionado",
-        text: "Debes seleccionar un operador antes de escanear.",
+        title: "Operador no detectado",
+        text: "No se pudo asociar tu usuario con un operador válido. Contacta al administrador.",
         confirmButtonColor: "#e1a21b",
       });
       return;
@@ -206,12 +233,6 @@ export default function AsociarTarima() {
     }
   }, [isQrScannerOpen]);
 
-  const handleOperatorChange = (value: string) => {
-    setSelectedOperator(value);
-    const operatorName = operators.find(op => op.rfiD_Operador === value)?.nombreOperador || null;
-    setSelectedOperatorName(operatorName);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#153E3E] to-[#0d2b2b] flex flex-col items-center py-8 px-4">
       {/* Header con logo y botones de navegación */}
@@ -233,7 +254,16 @@ export default function AsociarTarima() {
               <ClipboardList className="w-5 h-5" /> Gestionar Tarimas
             </Button>
           </div>
-          
+          <div className="mt-4 flex flex-col items-center">
+            {session?.user?.name ? (
+              <p className="text-2xl text-white">
+                Bienvenido, <span className="text-yellow-400 font-semibold">{session.user.name || ""}</span> 🎉
+              </p>
+            ) : (
+              <p className="text-gray-300">Cargando usuario...</p> // Mensaje de carga si no hay usuario
+            )}
+          </div>
+
           <h1 className="text-4xl md:text-5xl font-bold text-white tracking-wide uppercase mb-4 sm:mb-0 text-center sm:text-left">
             Asociación de <span className="text-[#e1a21b]">Tarima</span>
           </h1>
@@ -244,12 +274,12 @@ export default function AsociarTarima() {
 
       <div className="w-full max-w-4xl flex flex-col md:flex-row gap-6">
         <div className="w-full md:w-2/3 flex flex-col gap-6">
-          {/* Selección de Operador */}
+          {/* Información del Operador (reemplaza el combobox) */}
           <Card className="w-full bg-white/95 shadow-lg border-none rounded-xl overflow-hidden">
             <CardHeader className="bg-[#153E3E] text-white p-4">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <UserCheck className="w-5 h-5" /> 
-                Seleccionar Operador
+                Operador Actual
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
@@ -257,30 +287,25 @@ export default function AsociarTarima() {
                 <div className="flex justify-center items-center py-4">
                   <Loader2 className="w-8 h-8 text-[#e1a21b] animate-spin" />
                 </div>
+              ) : selectedOperatorName ? (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+                  <CheckCircle2 className="w-6 h-6 text-green-500 mt-1" />
+                  <div>
+                    <p className="text-green-700 text-lg font-semibold">
+                      {selectedOperatorName}
+                    </p>
+                    <p className="text-green-600 text-sm mt-1">
+                      Operando como usuario activo en el sistema
+                    </p>
+                  </div>
+                </div>
               ) : (
-                <>
-                  <Select onValueChange={handleOperatorChange}>
-                    <SelectTrigger className="w-full border-2 border-[#e1a21b] rounded-lg text-gray-700 font-medium px-4 py-3 bg-white">
-                      <SelectValue placeholder="Seleccionar operador" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {operators.map((op) => (
-                        <SelectItem key={op.id} value={op.rfiD_Operador}>
-                          {op.nombreOperador}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  {selectedOperatorName && (
-                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
-                      <CheckCircle2 className="w-5 h-5 text-green-500 mr-2" />
-                      <p className="text-green-700">
-                        Operador seleccionado: <span className="font-semibold">{selectedOperatorName}</span>
-                      </p>
-                    </div>
-                  )}
-                </>
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 text-yellow-500 animate-spin" />
+                  <p className="text-yellow-700">
+                    Esperando identificación de operador...
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
