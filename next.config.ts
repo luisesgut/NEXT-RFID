@@ -5,7 +5,8 @@ const nextConfig: NextConfig = {
     domains: ['calibri.mx', 'darsis.us'], // Agrega aquí el dominio permitido
     unoptimized: true, // Deshabilita la optimización de imágenes
   },
-  output: 'export', // Habilita la exportación estática
+  // output: 'export', // ❌ Eliminar o comentar esta línea
 };
 
 export default nextConfig;
+
